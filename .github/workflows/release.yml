@@ -38,31 +38,44 @@ jobs:
       id: version
       run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-    - name: Update package versions
+    - name: Sync package versions
       run: |
-        npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --workspaces
-        npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version
+        node scripts/sync-versions.js ${{ steps.version.outputs.VERSION }}
 
-        # Synchronize CLI dependency to match MCP server version
-        cd packages/cli
-        node -e "
-          const pkg = require('./package.json');
-          pkg.dependencies['@taskyard/mcp-server'] = '${{ steps.version.outputs.VERSION }}';
-          require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
-        "
-        cd ../..
-
-    - name: Publish CLI package to npm
-      run: |
-        cd packages/cli
-        npm publish --provenance
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-    - name: Publish MCP Server package to npm
+    - name: Phase 1 - Publish MCP Server
       run: |
         cd packages/mcp-server
         npm publish --provenance
+        echo "✅ Published @taskyard/mcp-server@${{ steps.version.outputs.VERSION }}"
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Wait for npm registry propagation
+      run: sleep 10
+
+    - name: Phase 2 - Update CLI dependency and publish
+      run: |
+        cd packages/cli
+
+        # Install the exact version we just published
+        npm install @taskyard/mcp-server@${{ steps.version.outputs.VERSION }} --save
+
+        # Verify dependency was updated correctly
+        INSTALLED_VERSION=$(node -p "require('./package.json').dependencies['@taskyard/mcp-server']")
+        if [[ "$INSTALLED_VERSION" != "${{ steps.version.outputs.VERSION }}" ]]; then
+          echo "❌ Error: Failed to install correct MCP server version"
+          echo "Expected: ${{ steps.version.outputs.VERSION }}, Got: $INSTALLED_VERSION"
+          exit 1
+        fi
+
+        echo "✅ CLI now depends on @taskyard/mcp-server@$INSTALLED_VERSION"
+
+        # Rebuild CLI with published dependency
+        npm run build
+
+        # Publish CLI
+        npm publish --provenance
+        echo "✅ Published taskyard@${{ steps.version.outputs.VERSION }}"
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
