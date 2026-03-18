@@ -1,5 +1,4 @@
 {
-  "project": "taskyard",
   "version": "0.1.0",
   "heartbeat_interval_seconds": 300,
   "lock_timeout_seconds": 600,

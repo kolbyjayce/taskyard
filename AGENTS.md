@@ -1,4 +1,4 @@
-# Agent protocol — taskyard
+# Agent protocol — undefined
 
 ## Rules every agent must follow
 
