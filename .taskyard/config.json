@@ -1,0 +1,9 @@
+{
+  "project": "taskyard",
+  "version": "0.1.0",
+  "heartbeat_interval_seconds": 300,
+  "lock_timeout_seconds": 600,
+  "stall_threshold_seconds": 1800,
+  "max_attempts_before_escalation": 3,
+  "dashboard_port": 3456
+}

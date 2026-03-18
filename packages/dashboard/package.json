@@ -1,7 +1,7 @@
 {
-  "name": "@crewboard/dashboard",
+  "name": "@taskyard/dashboard",
   "version": "0.1.0",
-  "description": "Crewboard web dashboard — React + Vite",
+  "description": "taskyard web dashboard — React + Vite",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

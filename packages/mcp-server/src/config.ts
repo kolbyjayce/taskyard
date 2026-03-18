@@ -22,7 +22,7 @@ const DEFAULTS: Config = {
 };
 
 export async function loadConfig(root: string): Promise<Config> {
-  const configPath = path.join(root, ".crewboard/config.json");
+  const configPath = path.join(root, ".taskyard/config.json");
   const raw = await fs.readFile(configPath, "utf-8").catch(() => null);
   if (!raw) return DEFAULTS;
   return { ...DEFAULTS, ...JSON.parse(raw) };

@@ -15,7 +15,7 @@ export async function statusCommand(options: StatusOptions) {
     });
 
     if (!res.ok) {
-      console.error(chalk.red("Could not reach MCP server. Is it running? Try: npx crewboard start"));
+      console.error(chalk.red("Could not reach MCP server. Is it running? Try: npx taskyard start"));
       process.exit(1);
     }
 
@@ -29,7 +29,7 @@ export async function statusCommand(options: StatusOptions) {
       "done":         tasks.filter((t: any) => t.status === "done"),
     };
 
-    console.log(`\n${chalk.bold(`crewboard — ${project}`)}\n`);
+    console.log(`\n${chalk.bold(`taskyard — ${project}`)}\n`);
 
     for (const [status, list] of Object.entries(byStatus)) {
       if (list.length === 0) continue;
@@ -66,7 +66,7 @@ export async function statusCommand(options: StatusOptions) {
     }
 
   } catch {
-    console.error(chalk.red("Cannot connect to crewboard. Start it with: npx crewboard start"));
+    console.error(chalk.red("Cannot connect to taskyard. Start it with: npx taskyard start"));
     process.exit(1);
   }
 }

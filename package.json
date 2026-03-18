@@ -1,6 +1,7 @@
 {
-  "name": "crewboard",
+  "name": "taskyard",
   "version": "0.1.0",
+  "type": "module",
   "description": "Agent-first project management. Markdown files, git, and an MCP server.",
   "private": true,
   "workspaces": [

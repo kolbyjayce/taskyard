@@ -4,7 +4,7 @@ import { execSync } from "child_process";
 import chalk from "chalk";
 
 export async function doctorCommand() {
-  console.log(`\n${chalk.bold("crewboard doctor")}\n`);
+  console.log(`\n${chalk.bold("taskyard doctor")}\n`);
 
   const checks: Array<{ label: string; check: () => Promise<{ ok: boolean; detail: string }> }> = [
     {
@@ -40,13 +40,13 @@ export async function doctorCommand() {
       },
     },
     {
-      label: "crewboard config",
+      label: "taskyard config",
       check: async () => {
-        const configPath = path.join(process.cwd(), ".crewboard/config.json");
+        const configPath = path.join(process.cwd(), ".taskyard/config.json");
         const exists = await fs.access(configPath).then(() => true).catch(() => false);
         return {
           ok: exists,
-          detail: exists ? configPath : "not found — run: npx crewboard init",
+          detail: exists ? configPath : "not found — run: npx taskyard init",
         };
       },
     },
@@ -57,7 +57,7 @@ export async function doctorCommand() {
           const res = await fetch("http://localhost:3456/api/projects", { signal: AbortSignal.timeout(1000) });
           return { ok: res.ok, detail: res.ok ? "http://localhost:3456" : `HTTP ${res.status}` };
         } catch {
-          return { ok: false, detail: "not running — start with: npx crewboard start" };
+          return { ok: false, detail: "not running — start with: npx taskyard start" };
         }
       },
     },
@@ -67,7 +67,7 @@ export async function doctorCommand() {
         const exists = await fs.access(path.join(process.cwd(), "AGENTS.md")).then(() => true).catch(() => false);
         return {
           ok: exists,
-          detail: exists ? "found" : "missing — run: npx crewboard init",
+          detail: exists ? "found" : "missing — run: npx taskyard init",
         };
       },
     },

@@ -29,7 +29,7 @@ export function Sidebar() {
     <nav className="w-52 border-r border-zinc-800 flex flex-col py-4 px-3 gap-6 flex-shrink-0">
       {/* Wordmark */}
       <div className="px-1">
-        <p className="text-sm font-semibold tracking-tight text-zinc-100">crewboard</p>
+        <p className="text-sm font-semibold tracking-tight text-zinc-100">taskyard</p>
         <p className="text-xs text-zinc-600">agent project mgmt</p>
       </div>
 

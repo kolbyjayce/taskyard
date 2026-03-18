@@ -15,7 +15,7 @@ export async function startCommand(options: StartOptions) {
   // 1. Start MCP server (via the installed package)
   const spinner = ora("Starting MCP server...").start();
 
-  const mcpServerPath = require.resolve("@crewboard/mcp-server");
+  const mcpServerPath = require.resolve("@taskyard/mcp-server");
   const mcp = spawn(
     process.execPath,
     [mcpServerPath, "--root", root, "--http-port", String(port)],

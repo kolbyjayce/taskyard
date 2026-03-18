@@ -6,15 +6,15 @@ import { statusCommand } from "./commands/status.js";
 import { doctorCommand } from "./commands/doctor.js";
 
 program
-  .name("crewboard")
+  .name("taskyard")
   .description("Agent-first project management. Markdown files, git, MCP.")
   .version("0.1.0");
 
 program
   .command("init")
-  .description("Scaffold crewboard structure in the current git repo")
+  .description("Scaffold taskyard structure in the current git repo")
   .option("--dir <path>", "subdirectory to initialize in", ".")
-  .option("--force", "overwrite existing crewboard files")
+  .option("--force", "overwrite existing taskyard files")
   .action(initCommand);
 
 program

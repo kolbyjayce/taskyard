@@ -88,7 +88,7 @@ export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, To
   });
 
   server.listen(port, () => {
-    console.error(`crewboard dashboard: http://localhost:${port}`);
+    console.error(`taskyard dashboard: http://localhost:${port}`);
   });
 
   return server;

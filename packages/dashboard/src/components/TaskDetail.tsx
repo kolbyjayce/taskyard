@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useBoardStore, type Task, type TaskStatus, type TaskPriority } from "../stores/board";
 
 const STATUS_OPTIONS: TaskStatus[] = ["backlog", "in-progress", "review", "blocked", "done"];

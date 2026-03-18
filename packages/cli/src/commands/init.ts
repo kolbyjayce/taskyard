@@ -14,7 +14,7 @@ const SCAFFOLD = {
   "AGENTS.md": agentsTemplate,
   "STATUS.md": statusTemplate,
   "CHANGELOG.md": changelogTemplate,
-  ".crewboard/config.json": configTemplate,
+  ".taskyard/config.json": configTemplate,
   "projects/.gitkeep": "",
 };
 
@@ -39,12 +39,12 @@ export async function initCommand(options: InitOptions) {
     spinner.start();
   }
 
-  // 2. Check for existing crewboard config (idempotent)
-  const configPath = path.join(root, ".crewboard/config.json");
+  // 2. Check for existing taskyard config (idempotent)
+  const configPath = path.join(root, ".taskyard/config.json");
   const exists = await fs.access(configPath).then(() => true).catch(() => false);
 
   if (exists && !options.force) {
-    spinner.warn(chalk.yellow("crewboard already initialized. Use --force to reinitialize."));
+    spinner.warn(chalk.yellow("taskyard already initialized. Use --force to reinitialize."));
     return;
   }
 
@@ -73,31 +73,31 @@ export async function initCommand(options: InitOptions) {
 
   // 6. Initial commit
   await git.add(".").catch(() => {});
-  await git.commit("chore: initialize crewboard").catch(() => {});
+  await git.commit("chore: initialize taskyard").catch(() => {});
 
-  spinner.succeed(chalk.green("crewboard initialized!"));
+  spinner.succeed(chalk.green("taskyard initialized!"));
   console.log(`
   ${chalk.bold("Next steps:")}
-    ${chalk.cyan("npx crewboard start")}   — start MCP server + dashboard
-    ${chalk.cyan("npx crewboard status")}  — view current board
+    ${chalk.cyan("npx taskyard start")}   — start MCP server + dashboard
+    ${chalk.cyan("npx taskyard status")}  — view current board
 
   ${chalk.bold("Add to your AI agent's MCP config:")}
-    ${chalk.dim(path.join(root, ".crewboard/mcp.json"))}
+    ${chalk.dim(path.join(root, ".taskyard/mcp.json"))}
   `);
 }
 
 async function writeMcpConfig(root: string) {
   const mcpConfig = {
     mcpServers: {
-      crewboard: {
+      taskyard: {
         command: "npx",
-        args: ["@crewboard/mcp-server", "--root", root],
+        args: ["@taskyard/mcp-server", "--root", root],
         env: {},
       },
     },
   };
   await fs.writeFile(
-    path.join(root, ".crewboard/mcp.json"),
+    path.join(root, ".taskyard/mcp.json"),
     JSON.stringify(mcpConfig, null, 2)
   );
 }
@@ -134,7 +134,7 @@ function agentsTemplate(project: string) {
 function statusTemplate(project: string) {
   return `# Status — ${project}
 
-_Auto-updated by crewboard. Do not edit manually._
+_Auto-updated by taskyard. Do not edit manually._
 
 | Status | Count |
 |--------|-------|
@@ -155,7 +155,7 @@ _Append-only. Written by the MCP server on every task state change._
 
 ---
 
-${new Date().toISOString()} — crewboard initialized
+${new Date().toISOString()} — taskyard initialized
 `;
 }
 

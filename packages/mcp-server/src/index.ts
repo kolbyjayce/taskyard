@@ -11,7 +11,7 @@ export async function startServer(root: string) {
   const config = await loadConfig(root);
   const store = new FileStore(root, config);
   const server = new McpServer({
-    name: "crewboard",
+    name: "taskyard",
     version: "0.1.0",
   });
 
@@ -28,7 +28,7 @@ export async function startServer(root: string) {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  console.error(`crewboard MCP server running — root: ${root}`);
+  console.error(`taskyard MCP server running — root: ${root}`);
 }
 
 // CLI entry: node dist/index.js --root /path/to/repo

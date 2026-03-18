@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { FileStore } from "../packages/mcp-server/src/store";
-import { isValidTransition } from "../packages/mcp-server/src/schema";
+import { FileStore } from "../packages/mcp-server/src/store.js";
+import { isValidTransition } from "../packages/mcp-server/src/schema.js";
 
 // ── Schema tests ─────────────────────────────────────────────────────────────
 
@@ -30,7 +30,7 @@ describe("FileStore", () => {
   let store: FileStore;
 
   beforeEach(async () => {
-    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "crewboard-test-"));
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "taskyard-test-"));
     // Minimal scaffold
     await fs.mkdir(path.join(tmpDir, "projects/test-project/tasks"), { recursive: true });
     await fs.writeFile(path.join(tmpDir, "CHANGELOG.md"), "# Changelog\n");

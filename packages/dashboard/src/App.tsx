@@ -5,7 +5,7 @@ import { ActivityFeed } from "./components/ActivityFeed";
 import { TaskDetail } from "./components/TaskDetail";
 import { useBoardStore } from "./stores/board";
 
-export function App() {
+function App() {
   const { fetchTasks, selectedTaskId } = useBoardStore();
 
   useEffect(() => {
@@ -27,3 +27,5 @@ export function App() {
     </div>
   );
 }
+
+export default App;
