@@ -150,7 +150,7 @@ cd packages/cli
 
 # Install the exact version we just published
 echo -e "${YELLOW}🔄 Installing published MCP server dependency...${NC}"
-npm install @taskyard/mcp-server@$VERSION --save
+npm install @taskyard/mcp-server@$VERSION --save --save-exact
 
 # Verify the dependency was installed correctly
 INSTALLED_VERSION=$(node -p "require('./package.json').dependencies['@taskyard/mcp-server']")

@@ -71,7 +71,7 @@ jobs:
         cd packages/cli
 
         # Install the exact beta version we just published
-        npm install @taskyard/mcp-server@${{ steps.version.outputs.BETA_VERSION }} --save
+        npm install @taskyard/mcp-server@${{ steps.version.outputs.BETA_VERSION }} --save --save-exact
 
         # Verify dependency was updated correctly
         INSTALLED_VERSION=$(node -p "require('./package.json').dependencies['@taskyard/mcp-server']")

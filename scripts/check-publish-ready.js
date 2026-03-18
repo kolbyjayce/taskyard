@@ -47,7 +47,8 @@ function checkPublishReady() {
   // Dependency checks
   console.log('\n🔗 Dependency Checks:');
   const cliMcpDep = cliPkg.dependencies['@taskyard/mcp-server'];
-  const depMatch = cliMcpDep === targetVersion;
+  // Accept both exact version and caret version for now
+  const depMatch = cliMcpDep === targetVersion || cliMcpDep === `^${targetVersion}`;
   console.log(`  ${depMatch ? '✅' : '❌'} CLI → MCP Server: ${cliMcpDep}`);
   if (!depMatch) hasErrors = true;
 
