@@ -1,5 +1,6 @@
 import { spawn } from "child_process";
 import path from "path";
+import { fileURLToPath } from "url";
 import chalk from "chalk";
 import ora from "ora";
 
@@ -15,7 +16,8 @@ export async function startCommand(options: StartOptions) {
   // 1. Start MCP server (via the installed package)
   const spinner = ora("Starting MCP server...").start();
 
-  const mcpServerPath = require.resolve("@taskyard/mcp-server");
+  const mcpServerURL = await import.meta.resolve("@taskyard/mcp-server");
+  const mcpServerPath = fileURLToPath(mcpServerURL);
   const mcp = spawn(
     process.execPath,
     [mcpServerPath, "--root", root, "--http-port", String(port)],

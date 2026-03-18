@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/components/ActivityFeed.tsx","./src/components/Board.tsx","./src/components/HeartbeatDot.tsx","./src/components/Sidebar.tsx","./src/components/TaskCard.tsx","./src/components/TaskDetail.tsx","./src/stores/board.ts","./vite.config.ts"],"version":"5.9.3"}

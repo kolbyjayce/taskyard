@@ -2,7 +2,20 @@
   "name": "taskyard",
   "version": "0.1.0",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": ["dist/**/*", "README.md"],
   "description": "Agent-first project management CLI",
+  "keywords": [
+    "cli",
+    "taskyard",
+    "project-management",
+    "ai-agents",
+    "mcp",
+    "git",
+    "markdown"
+  ],
   "bin": {
     "taskyard": "./dist/index.js"
   },
@@ -13,7 +26,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@taskyard/mcp-server": "*",
+    "@taskyard/mcp-server": "0.1.0",
     "chalk": "^5.3.0",
     "commander": "^12.0.0",
     "ora": "^8.0.0",
