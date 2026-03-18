@@ -61,6 +61,15 @@ jobs:
         echo "VERSION=${NEW_VERSION}" >> $GITHUB_OUTPUT
         echo "New version: ${NEW_VERSION}"
 
+        # Synchronize CLI dependency to match MCP server version
+        cd packages/cli
+        node -e "
+          const pkg = require('./package.json');
+          pkg.dependencies['@taskyard/mcp-server'] = '${NEW_VERSION}';
+          require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+        "
+        cd ../..
+
     - name: Build packages
       run: npm run build
 

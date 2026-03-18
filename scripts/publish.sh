@@ -94,6 +94,17 @@ echo -e "${YELLOW}📝 Updating package versions...${NC}"
 if [[ "$DRY_RUN" == "false" ]]; then
   npm version "$VERSION" --no-git-tag-version --workspaces
   npm version "$VERSION" --no-git-tag-version
+
+  # Update CLI dependency to match MCP server version
+  echo -e "${YELLOW}🔄 Synchronizing CLI dependency version...${NC}"
+  cd packages/cli
+  # Update the dependency in package.json to match the new version
+  node -e "
+    const pkg = require('./package.json');
+    pkg.dependencies['@taskyard/mcp-server'] = '$VERSION';
+    require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+  "
+  cd ../..
 fi
 
 echo -e "${GREEN}📦 Package versions updated:${NC}"

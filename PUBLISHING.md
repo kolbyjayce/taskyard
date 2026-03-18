@@ -116,16 +116,19 @@ Use the provided script for manual control:
 
 ### Dependencies
 
-The CLI package depends on the MCP server:
+The CLI package depends on the MCP server with exact version matching:
 ```json
 {
   "dependencies": {
-    "@taskyard/mcp-server": "0.1.0"
+    "@taskyard/mcp-server": "1.0.0-beta.1"
   }
 }
 ```
 
-**Important**: Always publish the MCP server before the CLI.
+**Important**:
+- Always publish the MCP server before the CLI
+- All packages must have synchronized versions
+- Use `node scripts/sync-versions.js [version]` to ensure version consistency
 
 ## GitHub Secrets Required
 
@@ -145,7 +148,10 @@ Add these secrets to your GitHub repository:
 ### Common Issues
 
 1. **Version conflicts**: Ensure all packages have consistent versions
+   - Solution: Run `node scripts/sync-versions.js [target-version]`
 2. **Dependency issues**: CLI must use exact MCP server version for releases
+   - Error: `'@taskyard/mcp-server@x.x.x' is not in this registry`
+   - Solution: Ensure MCP server is published first, or sync versions
 3. **Permission errors**: Verify npm authentication and package access
 
 ### Rollback Process

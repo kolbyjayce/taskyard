@@ -1,6 +1,6 @@
 {
   "name": "taskyard",
-  "version": "0.1.0",
+  "version": "1.0.0-beta.1",
   "type": "module",
   "description": "Agent-first project management. Markdown files, git, and an MCP server.",
   "private": true,
@@ -14,7 +14,10 @@
     "dev": "concurrently \"npm run dev -w packages/mcp-server\" \"npm run dev -w packages/dashboard\"",
     "test": "vitest run",
     "lint": "eslint packages/*/src",
-    "typecheck": "tsc --build"
+    "typecheck": "tsc --build",
+    "sync-versions": "node scripts/sync-versions.js",
+    "check-publish": "node scripts/check-publish-ready.js",
+    "publish": "./scripts/publish.sh"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

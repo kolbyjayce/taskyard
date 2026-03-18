@@ -43,6 +43,15 @@ jobs:
         npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version --workspaces
         npm version ${{ steps.version.outputs.VERSION }} --no-git-tag-version
 
+        # Synchronize CLI dependency to match MCP server version
+        cd packages/cli
+        node -e "
+          const pkg = require('./package.json');
+          pkg.dependencies['@taskyard/mcp-server'] = '${{ steps.version.outputs.VERSION }}';
+          require('fs').writeFileSync('./package.json', JSON.stringify(pkg, null, 2) + '\n');
+        "
+        cd ../..
+
     - name: Publish CLI package to npm
       run: |
         cd packages/cli
