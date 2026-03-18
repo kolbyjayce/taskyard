@@ -1,0 +1,24 @@
+{
+  "name": "crewboard",
+  "version": "0.1.0",
+  "description": "Agent-first project management CLI",
+  "bin": {
+    "crewboard": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "@crewboard/mcp-server": "*",
+    "chalk": "^5.3.0",
+    "commander": "^12.0.0",
+    "ora": "^8.0.0",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/prompts": "^2.4.9"
+  }
+}
