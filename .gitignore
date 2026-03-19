@@ -2,5 +2,18 @@ node_modules/
 dist/
 *.lock
 .DS_Store
+
+# TypeScript build artifacts
 *.js.map
-packages/dashboard/dist/
+*.d.ts
+*.d.ts.map
+*.tsbuildinfo
+
+# Generated .js files in src directories (should be .ts)
+packages/*/src/**/*.js
+tests/**/*.js
+
+# But allow config files
+!eslint.config.js
+!vitest.config.ts
+!scripts/*.js
