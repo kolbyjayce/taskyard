@@ -2,9 +2,18 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import type { FileStore } from "../store.js";
 
-export function registerTaskTools(server: McpServer, store: FileStore) {
+export function registerTaskTools(
+  server: McpServer,
+  store: FileStore,
+  toolHandlers?: Map<string, (args: Record<string, unknown>) => Promise<unknown>>
+) {
 
   // ── list_tasks ─────────────────────────────────────────────────────────────
+  const listTasksHandler = async ({ project, status, priority }: any) => {
+    const tasks = await store.listTasks(project, { status, priority });
+    return tasks; // Return raw data for HTTP adapter
+  };
+
   server.tool(
     "list_tasks",
     "List tasks for a project, optionally filtered by status or priority.",
@@ -14,7 +23,7 @@ export function registerTaskTools(server: McpServer, store: FileStore) {
       priority: z.enum(["low","medium","high","critical"]).optional(),
     },
     async ({ project, status, priority }) => {
-      const tasks = await store.listTasks(project, { status, priority });
+      const tasks = await listTasksHandler({ project, status, priority });
       return {
         content: [{
           type: "text",
@@ -23,6 +32,11 @@ export function registerTaskTools(server: McpServer, store: FileStore) {
       };
     }
   );
+
+  // Register handler for HTTP adapter
+  if (toolHandlers) {
+    toolHandlers.set("list_tasks", listTasksHandler);
+  }
 
   // ── read_task ──────────────────────────────────────────────────────────────
   server.tool(
@@ -201,6 +215,11 @@ export function registerTaskTools(server: McpServer, store: FileStore) {
   );
 
   // ── create_task ────────────────────────────────────────────────────────────
+  const createTaskHandler = async (args: any) => {
+    const task = await store.createTask(args.project, args);
+    return { success: true, task };
+  };
+
   server.tool(
     "create_task",
     "Create a new task in the backlog.",
@@ -214,12 +233,48 @@ export function registerTaskTools(server: McpServer, store: FileStore) {
       recovery_strategy: z.enum(["resume","restart"]).default("restart"),
     },
     async (args) => {
-      const task = await store.createTask(args.project, args);
+      const result = await createTaskHandler(args);
       return {
-        content: [{ type: "text", text: JSON.stringify({ success: true, task }) }],
+        content: [{ type: "text", text: JSON.stringify(result) }],
       };
     }
   );
+
+  // Register handler for HTTP adapter
+  if (toolHandlers) {
+    toolHandlers.set("create_task", createTaskHandler);
+  }
+
+  // ── update_task ────────────────────────────────────────────────────────────
+  const updateTaskHandler = async (args: any) => {
+    const { project, task_id, ...updates } = args;
+    await store.updateTask(project, task_id, updates);
+    return { success: true };
+  };
+
+  server.tool(
+    "update_task",
+    "Update task metadata such as status, priority, or assigned_to.",
+    {
+      project: z.string(),
+      task_id: z.string(),
+      status: z.enum(["backlog","in-progress","review","done","blocked"]).optional(),
+      priority: z.enum(["low","medium","high","critical"]).optional(),
+      assigned_to: z.string().optional(),
+      tags: z.array(z.string()).optional(),
+    },
+    async (args) => {
+      const result = await updateTaskHandler(args);
+      return {
+        content: [{ type: "text", text: JSON.stringify(result) }],
+      };
+    }
+  );
+
+  // Register handler for HTTP adapter
+  if (toolHandlers) {
+    toolHandlers.set("update_task", updateTaskHandler);
+  }
 
   // ── get_status ─────────────────────────────────────────────────────────────
   server.tool(

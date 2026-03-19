@@ -3,6 +3,7 @@ import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
 import type { FileStore } from "./store.js";
+import { createLogger } from "./logger.js";
 
 // A thin HTTP layer so the dashboard can call MCP tools without a full
 // WebSocket transport. This runs alongside the stdio MCP server.
@@ -10,10 +11,14 @@ import type { FileStore } from "./store.js";
 type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 
 export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, ToolHandler>, port: number) {
+  const logger = createLogger("http-adapter", store.root);
+
   const dashboardDist = path.join(
     path.dirname(fileURLToPath(import.meta.url)),
     "../../dashboard/dist"
   );
+
+  logger.debug("HTTP adapter configuration", { port, dashboardDist });
 
   const server = http.createServer(async (req, res) => {
     const url = new URL(req.url ?? "/", `http://localhost:${port}`);
@@ -28,17 +33,22 @@ export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, To
     if (url.pathname === "/api/tool" && req.method === "POST") {
       const body = await readBody(req);
       const { tool, args } = JSON.parse(body);
+      logger.debug("Tool request", { tool, args });
+
       const handler = toolHandlers.get(tool);
       if (!handler) {
+        logger.warn("Unknown tool requested", { tool });
         res.writeHead(404, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: `Unknown tool: ${tool}` }));
         return;
       }
       try {
         const result = await handler(args);
+        logger.debug("Tool executed successfully", { tool });
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(JSON.stringify(result));
       } catch (e: unknown) {
+        logger.error("Tool execution failed", { tool, error: String(e) });
         res.writeHead(400, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: String(e) }));
       }
@@ -88,7 +98,7 @@ export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, To
   });
 
   server.listen(port, () => {
-    console.error(`taskyard dashboard: http://localhost:${port}`);
+    logger.info("HTTP adapter listening", { url: `http://localhost:${port}` });
   });
 
   return server;

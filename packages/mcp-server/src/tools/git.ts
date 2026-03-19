@@ -3,7 +3,11 @@ import { z } from "zod";
 import { simpleGit } from "simple-git";
 import type { FileStore } from "../store.js";
 
-export function registerGitTools(server: McpServer, store: FileStore) {
+export function registerGitTools(
+  server: McpServer,
+  store: FileStore,
+  toolHandlers?: Map<string, (args: Record<string, unknown>) => Promise<unknown>>
+) {
 
   server.tool(
     "git_commit",

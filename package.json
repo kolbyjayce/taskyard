@@ -11,7 +11,8 @@
   ],
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "dev": "concurrently \"npm run dev -w packages/mcp-server\" \"npm run dev -w packages/dashboard\"",
+    "dev": "concurrently -n \"mcp,dash\" -c \"blue,green\" \"npm run dev:start -w packages/mcp-server\" \"npm run dev -w packages/dashboard\"",
+    "dev:build": "concurrently \"npm run dev -w packages/mcp-server\" \"npm run dev -w packages/dashboard\"",
     "test": "vitest run",
     "lint": "eslint packages/*/src",
     "typecheck": "tsc --build",
