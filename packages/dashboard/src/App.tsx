@@ -1,66 +1,78 @@
-import { useEffect } from "react";
-import { Toaster } from "react-hot-toast";
-import { Board } from "./components/Board";
-import { Sidebar } from "./components/Sidebar";
-import { ActivityFeed } from "./components/ActivityFeed";
-import { TaskDetail } from "./components/TaskDetail";
-import { Header } from "./components/Header";
-import { ThemeProvider } from "./components/ThemeProvider";
-import { FloatingActionButton } from "./components/FloatingActionButton";
-import { useBoardStore } from "./stores/board";
+import { useEffect, useState } from "react";
+
+interface Task {
+  id: string;
+  title: string;
+  status: string;
+}
 
 function App() {
-  const { fetchTasks, selectedTaskId } = useBoardStore();
+  const [tasks, setTasks] = useState<Task[]>([]);
 
   useEffect(() => {
-    fetchTasks();
-    // Poll every 10s — cheap since it's just reading local files via MCP
-    const interval = setInterval(fetchTasks, 10_000);
-    return () => clearInterval(interval);
+    // Simple mock data for now
+    setTasks([
+      { id: "1", title: "Example Task", status: "backlog" }
+    ]);
   }, []);
 
   return (
-    <ThemeProvider>
-      <div className="flex h-screen bg-primary text-primary font-mono overflow-hidden">
-        <div className="hidden md:block">
-          <Sidebar />
+    <div className="flex h-screen bg-gray-900 text-white font-mono overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 p-8">
+        <header className="mb-8">
+          <h1 className="text-3xl font-bold text-blue-400">Taskyard Dashboard</h1>
+          <p className="text-gray-400 mt-2">Task management for AI agents</p>
+        </header>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1">
+          <div className="bg-gray-800 p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4 text-gray-200">Backlog</h2>
+            <div className="space-y-3">
+              {tasks.filter(t => t.status === "backlog").map(task => (
+                <div key={task.id} className="bg-gray-700 p-3 rounded border-l-4 border-blue-500">
+                  <h3 className="font-medium">{task.title}</h3>
+                </div>
+              ))}
+              {tasks.filter(t => t.status === "backlog").length === 0 && (
+                <p className="text-gray-500 text-sm">No tasks in backlog</p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-gray-800 p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4 text-gray-200">In Progress</h2>
+            <div className="space-y-3">
+              {tasks.filter(t => t.status === "in-progress").map(task => (
+                <div key={task.id} className="bg-gray-700 p-3 rounded border-l-4 border-yellow-500">
+                  <h3 className="font-medium">{task.title}</h3>
+                </div>
+              ))}
+              {tasks.filter(t => t.status === "in-progress").length === 0 && (
+                <p className="text-gray-500 text-sm">No tasks in progress</p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-gray-800 p-6 rounded-lg">
+            <h2 className="text-xl font-semibold mb-4 text-gray-200">Done</h2>
+            <div className="space-y-3">
+              {tasks.filter(t => t.status === "done").map(task => (
+                <div key={task.id} className="bg-gray-700 p-3 rounded border-l-4 border-green-500">
+                  <h3 className="font-medium">{task.title}</h3>
+                </div>
+              ))}
+              {tasks.filter(t => t.status === "done").length === 0 && (
+                <p className="text-gray-500 text-sm">No completed tasks</p>
+              )}
+            </div>
+          </div>
         </div>
-        <main className="flex-1 flex flex-col min-w-0">
-          <Header />
-          <Board />
-        </main>
-        <aside className="hidden lg:flex w-80 border-l border-theme flex-col">
-          {selectedTaskId ? <TaskDetail taskId={selectedTaskId} /> : <ActivityFeed />}
-        </aside>
-        <FloatingActionButton />
-      </div>
-      <Toaster
-        position="bottom-right"
-        gutter={8}
-        toastOptions={{
-          duration: 4000,
-          style: {
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            border: '1px solid var(--border)',
-            borderRadius: '8px',
-            fontSize: '14px',
-          },
-          success: {
-            iconTheme: {
-              primary: 'var(--accent-success)',
-              secondary: 'var(--bg-card)',
-            },
-          },
-          error: {
-            iconTheme: {
-              primary: 'var(--accent-danger)',
-              secondary: 'var(--bg-card)',
-            },
-          },
-        }}
-      />
-    </ThemeProvider>
+
+        <footer className="mt-8 text-center text-gray-500 text-sm">
+          <p>Drop task files in the <code className="bg-gray-800 px-2 py-1 rounded">tasks/</code> directory to get started</p>
+        </footer>
+      </main>
+    </div>
   );
 }
 

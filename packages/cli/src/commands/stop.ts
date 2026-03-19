@@ -10,16 +10,16 @@ export async function stopCommand() {
   try {
     const status = await daemon.status();
     if (!status.running) {
-      console.log(chalk.yellow("Taskyard daemon is not running"));
+      process.stdout.write(chalk.yellow("Taskyard daemon is not running\n"));
       return;
     }
 
-    console.log("Stopping taskyard daemon...");
+    process.stdout.write("Stopping taskyard daemon...\n");
     await daemon.stop();
-    console.log(chalk.green("✓ Taskyard daemon stopped"));
+    process.stdout.write(chalk.green("✓ Taskyard daemon stopped\n"));
   } catch (error) {
     logger.error("Failed to stop daemon", { error: String(error) });
-    console.error(chalk.red(`Failed to stop daemon: ${error}`));
+    process.stderr.write(chalk.red(`Failed to stop daemon: ${error}\n`));
     process.exit(1);
   }
 }

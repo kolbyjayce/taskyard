@@ -22,6 +22,8 @@
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.57.1",
+    "@typescript-eslint/parser": "^8.57.1",
     "concurrently": "^8.0.0",
     "eslint": "^9.0.0",
     "typescript": "^5.4.0",
