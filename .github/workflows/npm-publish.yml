@@ -1,0 +1,334 @@
+name: NPM Trusted Publishing
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      release_type:
+        description: 'Release type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+        - prerelease
+      prerelease_tag:
+        description: 'Prerelease tag (beta, rc, alpha)'
+        required: false
+        default: 'beta'
+        type: string
+      dry_run:
+        description: 'Dry run - validate without publishing'
+        required: false
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '20.x'
+  REGISTRY_URL: 'https://registry.npmjs.org'
+
+jobs:
+  validate:
+    name: Validate Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      is_prerelease: ${{ steps.version.outputs.is_prerelease }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        registry-url: ${{ env.REGISTRY_URL }}
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Determine version
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          # Tag-based release
+          VERSION=${GITHUB_REF#refs/tags/v}
+          IS_PRERELEASE=false
+          if [[ "$VERSION" == *"-"* ]]; then
+            IS_PRERELEASE=true
+          fi
+        else
+          # Manual workflow dispatch
+          CURRENT_VERSION=$(node -p "require('./package.json').version")
+
+          if [[ "${{ github.event.inputs.release_type }}" == "prerelease" ]]; then
+            TIMESTAMP=$(date +%Y%m%d%H%M%S)
+            VERSION="${CURRENT_VERSION}-${{ github.event.inputs.prerelease_tag }}.${TIMESTAMP}"
+            IS_PRERELEASE=true
+          else
+            # For patch/minor/major, we'll use npm version to calculate
+            npm version ${{ github.event.inputs.release_type }} --no-git-tag-version
+            VERSION=$(node -p "require('./package.json').version")
+            IS_PRERELEASE=false
+          fi
+        fi
+
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "is_prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
+        echo "🏷️ Target version: ${VERSION}"
+        echo "🔖 Is prerelease: ${IS_PRERELEASE}"
+
+    - name: Sync package versions
+      run: |
+        node scripts/sync-versions.js ${{ steps.version.outputs.version }}
+
+    - name: Run quality checks
+      run: |
+        npm run lint
+        npm run typecheck
+        npm test
+
+    - name: Build packages
+      run: npm run build
+
+    - name: Validate publish readiness
+      run: node scripts/check-publish-ready.js
+
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: build-artifacts
+        path: |
+          packages/*/dist/**/*
+          packages/*/package.json
+        retention-days: 1
+
+  publish-packages:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    needs: validate
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+      id-token: write  # Required for npm trusted publishing
+      packages: write
+    environment: npm-publishing
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+
+    - name: Setup Node.js with npm provenance
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        registry-url: ${{ env.REGISTRY_URL }}
+
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: build-artifacts
+        path: .
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Set package versions
+      run: |
+        node scripts/sync-versions.js ${{ needs.validate.outputs.version }}
+
+    - name: Configure Git
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+
+    - name: Phase 1 - Publish MCP Server
+      run: |
+        cd packages/mcp-server
+
+        PUBLISH_CMD="npm publish --provenance"
+        if [[ "${{ needs.validate.outputs.is_prerelease }}" == "true" ]]; then
+          PUBLISH_CMD="${PUBLISH_CMD} --tag ${{ github.event.inputs.prerelease_tag || 'beta' }}"
+        fi
+
+        echo "🚀 Publishing @taskyard/mcp-server@${{ needs.validate.outputs.version }}"
+        eval $PUBLISH_CMD
+        echo "✅ Published @taskyard/mcp-server@${{ needs.validate.outputs.version }}"
+
+    - name: Verify MCP Server publication
+      run: |
+        echo "⏳ Waiting for npm registry propagation..."
+        RETRY_COUNT=0
+        MAX_RETRIES=12
+        SLEEP_TIME=10
+
+        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+          if npm view @taskyard/mcp-server@${{ needs.validate.outputs.version }} version >/dev/null 2>&1; then
+            echo "✅ MCP Server version verified on registry"
+            break
+          fi
+
+          echo "⏳ Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES - waiting ${SLEEP_TIME}s..."
+          sleep $SLEEP_TIME
+          RETRY_COUNT=$((RETRY_COUNT + 1))
+        done
+
+        if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+          echo "❌ Failed to verify MCP Server publication after $((MAX_RETRIES * SLEEP_TIME)) seconds"
+          exit 1
+        fi
+
+    - name: Phase 2 - Update CLI dependency and publish
+      run: |
+        cd packages/cli
+
+        # Install the exact version we just published
+        echo "🔄 Installing @taskyard/mcp-server@${{ needs.validate.outputs.version }}"
+        npm install @taskyard/mcp-server@${{ needs.validate.outputs.version }} --save --save-exact
+
+        # Verify dependency update
+        INSTALLED_VERSION=$(node -p "require('./package.json').dependencies['@taskyard/mcp-server']")
+        if [[ "$INSTALLED_VERSION" != "${{ needs.validate.outputs.version }}" ]]; then
+          echo "❌ Dependency verification failed"
+          echo "Expected: ${{ needs.validate.outputs.version }}, Got: $INSTALLED_VERSION"
+          exit 1
+        fi
+
+        echo "✅ CLI dependency updated to @taskyard/mcp-server@$INSTALLED_VERSION"
+
+        # Rebuild with updated dependency
+        npm run build
+
+        # Publish CLI
+        PUBLISH_CMD="npm publish --provenance"
+        if [[ "${{ needs.validate.outputs.is_prerelease }}" == "true" ]]; then
+          PUBLISH_CMD="${PUBLISH_CMD} --tag ${{ github.event.inputs.prerelease_tag || 'beta' }}"
+        fi
+
+        echo "🚀 Publishing taskyard@${{ needs.validate.outputs.version }}"
+        eval $PUBLISH_CMD
+        echo "✅ Published taskyard@${{ needs.validate.outputs.version }}"
+
+    - name: Commit version changes
+      if: ${{ github.event_name == 'workflow_dispatch' }}
+      run: |
+        git add .
+        git commit -m "chore: release v${{ needs.validate.outputs.version }}
+
+        🤖 Generated with [Claude Code](https://claude.ai/code)
+
+        Co-Authored-By: Claude <noreply@anthropic.com>"
+
+        if [[ "${{ needs.validate.outputs.is_prerelease }}" == "false" ]]; then
+          git tag "v${{ needs.validate.outputs.version }}"
+        fi
+
+    - name: Push changes
+      if: ${{ github.event_name == 'workflow_dispatch' }}
+      run: |
+        git push origin ${{ github.ref_name }}
+        if [[ "${{ needs.validate.outputs.is_prerelease }}" == "false" ]]; then
+          git push origin "v${{ needs.validate.outputs.version }}"
+        fi
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, publish-packages]
+    if: ${{ !inputs.dry_run }}
+    permissions:
+      contents: write
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        if git describe --tags --abbrev=0 HEAD^ >/dev/null 2>&1; then
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^)
+          CHANGELOG=$(git log --oneline ${LAST_TAG}..HEAD)
+        else
+          CHANGELOG="Initial release"
+        fi
+
+        # Format for GitHub Release
+        {
+          echo "## 📦 Published Packages"
+          echo ""
+          echo "### CLI Package (\`taskyard\`)"
+          echo "- **Install:** \`npx taskyard@${{ needs.validate.outputs.version }}\`"
+          echo "- **NPM:** [taskyard@${{ needs.validate.outputs.version }}](https://www.npmjs.com/package/taskyard/v/${{ needs.validate.outputs.version }})"
+          echo ""
+          echo "### MCP Server Package (\`@taskyard/mcp-server\`)"
+          echo "- **Install:** \`npm install @taskyard/mcp-server@${{ needs.validate.outputs.version }}\`"
+          echo "- **NPM:** [@taskyard/mcp-server@${{ needs.validate.outputs.version }}](https://www.npmjs.com/package/@taskyard/mcp-server/v/${{ needs.validate.outputs.version }})"
+          echo ""
+          echo "## 📝 Changes"
+          echo ""
+          echo "\`\`\`"
+          echo "$CHANGELOG"
+          echo "\`\`\`"
+          echo ""
+          echo "---"
+          echo "*Published with provenance using GitHub's trusted publishing 🔒*"
+        } > changelog.md
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: v${{ needs.validate.outputs.version }}
+        name: Release v${{ needs.validate.outputs.version }}
+        body_path: changelog.md
+        prerelease: ${{ needs.validate.outputs.is_prerelease == 'true' }}
+        make_latest: ${{ needs.validate.outputs.is_prerelease == 'false' }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  notify-success:
+    name: Notify Success
+    runs-on: ubuntu-latest
+    needs: [validate, publish-packages, create-release]
+    if: always() && (needs.publish-packages.result == 'success' || inputs.dry_run)
+    steps:
+    - name: Success summary
+      run: |
+        echo "## 🎉 NPM Publishing Completed Successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Version:** \`${{ needs.validate.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "**Prerelease:** ${{ needs.validate.outputs.is_prerelease }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+          echo "### 🔍 Dry Run Results" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Version validation passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Quality checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Build artifacts generated" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Publish readiness verified" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "### 📦 Published Packages" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ \`@taskyard/mcp-server@${{ needs.validate.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ \`taskyard@${{ needs.validate.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔗 Installation Commands" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "# CLI tool" >> $GITHUB_STEP_SUMMARY
+          echo "npx taskyard@${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "# MCP Server" >> $GITHUB_STEP_SUMMARY
+          echo "npm install @taskyard/mcp-server@${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        fi

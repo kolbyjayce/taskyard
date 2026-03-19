@@ -1,69 +1,79 @@
 # Publishing Guide
 
-This document outlines the publishing process for taskyard packages to npm.
+This document outlines the publishing process for taskyard packages to npm using **NPM Trusted Publishing**.
 
-## Automated Publishing (Recommended)
+## ✅ Prerequisites
+
+### NPM Trusted Publishing Setup
+Configure trusted publishing for both packages on npmjs.com:
+1. Go to npmjs.com → Account Settings → Publishing Access
+2. Add this GitHub repository as a trusted publisher for:
+   - `taskyard` package
+   - `@taskyard/mcp-server` package
+
+### GitHub Environment
+Create a protected environment (optional but recommended):
+1. Go to Repository Settings → Environments
+2. Create `npm-publishing` environment
+3. Add protection rules as needed
+
+## 🚀 Automated Publishing (Recommended)
+
+All publishing is handled by the consolidated **NPM Trusted Publishing** workflow.
 
 ### 1. Stable Releases
 
-Stable releases are published automatically when you push a git tag:
-
+**Method 1: Git Tag (Automatic)**
 ```bash
 # Create and push a version tag
 git tag v1.0.0
 git push origin v1.0.0
 ```
 
-This triggers the **Release** workflow which:
-- Runs all tests
-- Builds packages
-- Updates package versions
-- Publishes to npm with `latest` tag
-- Creates a GitHub release
-
-### 2. Beta Releases
-
-Beta releases can be triggered in two ways:
-
-#### Automatic (on develop branch)
-Push to the `develop` branch automatically publishes a timestamped beta:
-```bash
-git push origin develop
-```
-
-#### Manual Trigger
-Use the GitHub Actions "Publish Beta" workflow:
-1. Go to Actions → Publish Beta
+**Method 2: Manual Trigger**
+1. Go to Actions → "NPM Trusted Publishing"
 2. Click "Run workflow"
-3. Enter a beta tag (e.g., `beta.1`, `rc.1`)
+3. Select release type: `patch`, `minor`, or `major`
 
-### 3. Version Bumping
+### 2. Beta/Prerelease
 
-Use the "Version Bump" workflow to prepare releases:
-1. Go to Actions → Version Bump
-2. Choose version type: `patch`, `minor`, or `major`
-3. Optionally create a pre-release
-4. This creates a commit and tag automatically
+**Manual Trigger Only:**
+1. Go to Actions → "NPM Trusted Publishing"
+2. Click "Run workflow"
+3. Select release type: `prerelease`
+4. Enter prerelease tag (e.g., `beta`, `rc`, `alpha`)
 
-## Manual Publishing
+## 🧪 Testing Releases
 
-### Local Publishing Script
+**Dry Run Mode:**
+1. Go to Actions → "NPM Trusted Publishing"
+2. Click "Run workflow"
+3. Check "Dry Run" option
+4. Select any release type to test the workflow
 
-Use the provided script for manual control:
+This validates the entire publishing process without actually publishing to npm.
 
-```bash
-# Stable release
-./scripts/publish.sh 1.0.0
+## 📦 What the Workflow Does
 
-# Beta release
-./scripts/publish.sh 1.0.0-beta.1 --beta
+The consolidated workflow automatically:
+1. **Validates**: Runs linting, type checking, and tests
+2. **Builds**: Compiles all packages
+3. **Versions**: Updates package versions consistently
+4. **Publishes**:
+   - MCP server first (with provenance)
+   - CLI second (after verifying dependency availability)
+5. **Verifies**: Confirms packages are available on npm registry
+6. **Tags**: Creates GitHub release (for stable releases)
 
-# Dry run (test without publishing)
-./scripts/publish.sh 1.0.0 --dry-run
-```
+## 🔧 Manual Publishing (Not Recommended)
 
-### Manual Steps
+⚠️ **Warning**: Manual publishing bypasses trusted publishing security. Only use if automated workflow fails.
 
+### Requirements
+- npm login with publish permissions
+- Clean working directory
+
+### Steps
 1. **Prepare environment**:
    ```bash
    npm login  # Login to npm
@@ -76,22 +86,20 @@ Use the provided script for manual control:
    npm run build
    ```
 
-3. **Update versions**:
+3. **Update versions** (use sync script):
    ```bash
-   npm version patch --workspaces --no-git-tag-version
-   npm version patch --no-git-tag-version
+   node scripts/sync-versions.js 1.0.0
    ```
 
 4. **Publish packages** (order matters):
    ```bash
    # Publish MCP server first
    cd packages/mcp-server
-   npm publish
+   npm publish --provenance
 
-   # Update CLI dependency and publish
-   cd ../cli
-   npm install @taskyard/mcp-server@latest
-   npm publish
+   # Wait for registry propagation, then publish CLI
+   cd ../../packages/cli
+   npm publish --provenance
    ```
 
 5. **Create git tag**:
@@ -130,29 +138,39 @@ The CLI package depends on the MCP server with exact version matching:
 - All packages must have synchronized versions
 - Use `node scripts/sync-versions.js [version]` to ensure version consistency
 
-## GitHub Secrets Required
+## 🔐 Security & Authentication
 
-Add these secrets to your GitHub repository:
+**No GitHub Secrets Required!**
 
-- `NPM_TOKEN` - npm authentication token with publish permissions
+This setup uses **NPM Trusted Publishing** with OpenID Connect (OIDC):
+- ✅ No long-lived tokens stored in GitHub
+- ✅ Automatic provenance attestation
+- ✅ Enhanced security through cryptographic verification
+- ✅ No secret rotation required
 
-## Workflow Files
+## 📁 Workflow Files
 
-- `.github/workflows/ci.yml` - Continuous integration
-- `.github/workflows/release.yml` - Stable releases (triggered by tags)
-- `.github/workflows/publish-beta.yml` - Beta releases
-- `.github/workflows/version-bump.yml` - Version management
+- `.github/workflows/ci.yml` - Continuous integration (tests, linting)
+- `.github/workflows/npm-publish.yml` - **Consolidated trusted publishing workflow**
 
 ## Troubleshooting
 
 ### Common Issues
 
-1. **Version conflicts**: Ensure all packages have consistent versions
+1. **NPM Trusted Publishing Not Configured**
+   - Error: `npm ERR! 403 Forbidden`
+   - Solution: Configure trusted publishing on npmjs.com for both packages
+
+2. **Version conflicts**: Ensure all packages have consistent versions
    - Solution: Run `node scripts/sync-versions.js [target-version]`
-2. **Dependency issues**: CLI must use exact MCP server version for releases
+
+3. **Dependency issues**: CLI must use exact MCP server version for releases
    - Error: `'@taskyard/mcp-server@x.x.x' is not in this registry`
-   - Solution: Ensure MCP server is published first, or sync versions
-3. **Permission errors**: Verify npm authentication and package access
+   - Solution: Workflow automatically handles this with retry logic
+
+4. **Workflow permission errors**:
+   - Error: `Error: Process completed with exit code 1`
+   - Solution: Ensure repository has `Actions` and `Pages` permissions enabled
 
 ### Rollback Process
 
@@ -168,22 +186,24 @@ If a release has issues:
 
 3. **Update documentation** if needed
 
-## Post-Release Checklist
+## ✅ Post-Release Checklist
 
 - [ ] Verify packages are live on npm
 - [ ] Test installation: `npx taskyard@latest`
+- [ ] Verify provenance attestation is present
 - [ ] Update documentation if needed
 - [ ] Announce release in relevant channels
 - [ ] Monitor for issues in the first 24 hours
 
-## Beta Testing
+## 🧪 Beta Testing
 
-Beta releases are published with the `beta` tag:
+Prerelease versions are published with custom tags:
 
 ```bash
-# Install beta versions
+# Install beta versions (example tags)
 npx taskyard@beta
+npx taskyard@rc
 npm install @taskyard/mcp-server@beta
 ```
 
-Users can opt into beta testing by using the `@beta` tag.
+Users can opt into testing by using the appropriate tag (e.g., `@beta`, `@rc`, `@alpha`).
