@@ -1,0 +1,177 @@
+/* Theme system with CSS custom properties */
+:root {
+  /* Default to dark theme */
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2a2a2a;
+  --bg-card: #1f1f1f;
+  --bg-hover: #252525;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+  --accent-primary: #3b82f6;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-focus: rgba(59, 130, 246, 0.5);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-glow: rgba(59, 130, 246, 0.2);
+}
+
+/* Light theme */
+:root[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-tertiary: #f1f5f9;
+  --bg-card: #ffffff;
+  --bg-hover: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --accent-primary: #3b82f6;
+  --accent-success: #059669;
+  --accent-warning: #d97706;
+  --accent-danger: #dc2626;
+  --border: rgba(0, 0, 0, 0.1);
+  --border-focus: rgba(59, 130, 246, 0.5);
+  --shadow: rgba(0, 0, 0, 0.1);
+  --shadow-glow: rgba(59, 130, 246, 0.1);
+}
+
+/* Dark theme (explicit) */
+:root[data-theme="dark"] {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #1a1a1a;
+  --bg-tertiary: #2a2a2a;
+  --bg-card: #1f1f1f;
+  --bg-hover: #252525;
+  --text-primary: #ffffff;
+  --text-secondary: #a0a0a0;
+  --text-muted: #666666;
+  --accent-primary: #3b82f6;
+  --accent-success: #10b981;
+  --accent-warning: #f59e0b;
+  --accent-danger: #ef4444;
+  --border: rgba(255, 255, 255, 0.1);
+  --border-focus: rgba(59, 130, 246, 0.5);
+  --shadow: rgba(0, 0, 0, 0.5);
+  --shadow-glow: rgba(59, 130, 246, 0.2);
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animation utilities */
+.smooth-transition {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.magnetic-hover {
+  transition: transform 0.15s ease-out;
+}
+
+.magnetic-hover:hover {
+  transform: translateY(-2px);
+}
+
+.glow-hover {
+  transition: box-shadow 0.15s ease-out;
+}
+
+.glow-hover:hover {
+  box-shadow: 0 4px 12px var(--shadow-glow);
+}
+
+/* Custom utility classes for theme colors */
+.bg-primary { background-color: var(--bg-primary); }
+.bg-secondary { background-color: var(--bg-secondary); }
+.bg-tertiary { background-color: var(--bg-tertiary); }
+.bg-card { background-color: var(--bg-card); }
+.bg-hover { background-color: var(--bg-hover); }
+
+.text-primary { color: var(--text-primary); }
+.text-secondary { color: var(--text-secondary); }
+.text-muted { color: var(--text-muted); }
+
+.border-theme { border-color: var(--border); }
+.border-focus { border-color: var(--border-focus); }
+
+.accent-primary { color: var(--accent-primary); }
+.accent-success { color: var(--accent-success); }
+.accent-warning { color: var(--accent-warning); }
+.accent-danger { color: var(--accent-danger); }
+
+.bg-accent-primary { background-color: var(--accent-primary); }
+.bg-accent-success { background-color: var(--accent-success); }
+.bg-accent-warning { background-color: var(--accent-warning); }
+.bg-accent-danger { background-color: var(--accent-danger); }
+
+/* Task priority colors that work with both themes */
+.priority-critical { background-color: var(--accent-danger); }
+.priority-high { background-color: var(--accent-warning); }
+.priority-medium { background-color: var(--accent-primary); }
+.priority-low { background-color: var(--text-muted); }
+
+/* Status colors */
+.status-backlog { border-color: var(--text-muted); }
+.status-in-progress { border-color: var(--accent-primary); }
+.status-review { border-color: var(--accent-warning); }
+.status-blocked { border-color: var(--accent-danger); }
+.status-done { border-color: var(--accent-success); }
+
+/* Utility classes */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+/* Focus styles */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-accent-primary/50 focus:ring-offset-2 focus:ring-offset-primary;
+}
+
+/* Scrollbar styling */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) var(--bg-secondary);
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}

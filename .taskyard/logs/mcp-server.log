@@ -1,0 +1,12 @@
+2026-03-19T00:21:27.519Z [INFO] mcp-server: Starting taskyard MCP server {"root":"/home/kolby/code/taskyard","httpPort":3456}
+2026-03-19T00:21:27.525Z [INFO] mcp-server: Starting HTTP adapter for dashboard {"port":3456}
+2026-03-19T00:21:27.527Z [INFO] mcp-server: MCP server ready {"toolCount":3}
+2026-03-19T00:21:27.527Z [INFO] http-adapter: HTTP adapter listening {"url":"http://localhost:3456"}
+2026-03-19T00:22:37.747Z [INFO] mcp-server: Starting taskyard MCP server {"root":"/home/kolby/code/taskyard","httpPort":3456}
+2026-03-19T00:22:37.753Z [INFO] mcp-server: Starting HTTP adapter for dashboard {"port":3456}
+2026-03-19T00:22:37.754Z [INFO] mcp-server: MCP server ready {"toolCount":3}
+2026-03-19T00:22:37.754Z [INFO] http-adapter: HTTP adapter listening {"url":"http://localhost:3456"}
+2026-03-19T00:46:38.452Z [INFO] mcp-server: Starting taskyard MCP server {"root":"/home/kolby/code/taskyard","httpPort":3456}
+2026-03-19T00:46:38.457Z [INFO] mcp-server: Starting HTTP adapter for dashboard {"port":3456}
+2026-03-19T00:46:38.458Z [INFO] mcp-server: MCP server ready {"toolCount":3}
+2026-03-19T00:46:38.459Z [INFO] http-adapter: HTTP adapter listening {"url":"http://localhost:3456"}

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import toast from "react-hot-toast";
 
 export type TaskStatus = "backlog" | "in-progress" | "review" | "done" | "blocked";
 export type TaskPriority = "low" | "medium" | "high" | "critical";
@@ -74,20 +75,35 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
 
   updateTask: async (taskId, patch) => {
     const { project, tasks } = get();
+    const oldTask = tasks.find(t => t.id === taskId);
+
     // Optimistic update
     set({ tasks: tasks.map(t => t.id === taskId ? { ...t, ...patch } : t) });
+
     try {
       await mcpCall("update_task", { project, task_id: taskId, ...patch });
+
+      // Show success toast for status changes
+      if (patch.status && oldTask) {
+        toast.success(`Task moved to ${patch.status.replace('-', ' ')}`);
+      }
     } catch (e) {
       // Revert on failure
       await get().fetchTasks();
+      toast.error(`Failed to update task: ${String(e)}`);
       throw e;
     }
   },
 
   createTask: async (fields) => {
     const { project } = get();
-    await mcpCall("create_task", { project, ...fields, created_by: "human" });
-    await get().fetchTasks();
+    try {
+      await mcpCall("create_task", { project, ...fields, created_by: "human" });
+      await get().fetchTasks();
+      toast.success(`Task "${fields.title}" created successfully`);
+    } catch (e) {
+      toast.error(`Failed to create task: ${String(e)}`);
+      throw e;
+    }
   },
 }));

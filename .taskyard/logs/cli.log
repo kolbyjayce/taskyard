@@ -1,0 +1,12 @@
+2026-03-19T00:21:21.375Z [INFO] init: Initializing taskyard {"root":"/home/kolby/code/taskyard"}
+2026-03-19T00:21:27.320Z [INFO] daemon: Starting daemon {"port":3456,"dashboard":true,"logLevel":1}
+2026-03-19T00:21:27.328Z [INFO] daemon: Daemon started {"pid":360734,"port":3456}
+2026-03-19T00:21:54.759Z [INFO] doctor: Creating tasks directory
+2026-03-19T00:22:25.147Z [INFO] daemon: Stopping daemon {"pid":360734}
+2026-03-19T00:22:27.162Z [INFO] daemon: Daemon stopped
+2026-03-19T00:22:37.567Z [INFO] start: Starting taskyard services {"root":"/home/kolby/code/taskyard","port":3456,"dashboard":true}
+2026-03-19T00:28:45.614Z [INFO] init: Initializing taskyard {"root":"/home/kolby/code/taskyard","force":true}
+2026-03-19T00:46:38.259Z [INFO] daemon: Starting daemon {"port":3456,"dashboard":true,"logLevel":1}
+2026-03-19T00:46:38.267Z [INFO] daemon: Daemon started {"pid":365364,"port":3456}
+2026-03-19T00:46:52.624Z [INFO] daemon: Stopping daemon {"pid":365364}
+2026-03-19T00:46:54.639Z [INFO] daemon: Daemon stopped

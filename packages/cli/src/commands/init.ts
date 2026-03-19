@@ -15,7 +15,13 @@ const SCAFFOLD = {
   "AGENTS.md": agentsTemplate,
   "STATUS.md": statusTemplate,
   "CHANGELOG.md": changelogTemplate,
+  "TASK_GUIDE.md": taskGuideTemplate,
   ".taskyard/config.json": configTemplate,
+  "tasks/README.md": tasksReadmeTemplate,
+  "tasks/examples/example-feature.md": exampleTaskTemplate,
+  "tasks/examples/example-bugfix.md": exampleBugfixTemplate,
+  "notes/.gitkeep": "",
+  "artifacts/.gitkeep": "",
   "projects/.gitkeep": "",
 };
 
@@ -132,7 +138,12 @@ export async function initCommand(options: InitOptions) {
 
   ${dashboardEnabled ? chalk.bold("Dashboard will be available at:") + "\n    " + chalk.cyan("http://localhost:3456") + "\n" : ""}
 
-  ${chalk.bold("For AI agents, add this MCP config:")}
+  ${chalk.bold("📋 Task Management:")}
+    Drop files in ${chalk.cyan("tasks/")} directory or use the dashboard
+    See ${chalk.cyan("TASK_GUIDE.md")} for detailed instructions
+    Example tasks created in ${chalk.cyan("tasks/examples/")}
+
+  ${chalk.bold("🤖 For AI agents, add this MCP config:")}
     ${chalk.dim(path.join(root, ".taskyard/mcp.json"))}
 
   ${autostartEnabled ? chalk.bold("Auto-start configuration:") + "\n    " + chalk.dim("Service files created in .taskyard/") + "\n" : ""}
@@ -334,4 +345,226 @@ function configTemplate(project: string, features?: string[]) {
   }
 
   return JSON.stringify(config, null, 2);
+}
+
+function taskGuideTemplate(project: string, features?: string[]) {
+  return `# Task Creation Guide — ${project}
+
+## How to Create Tasks
+
+Taskyard automatically detects and manages tasks placed in the \`tasks/\` directory. There are several ways to create tasks:
+
+### 1. Create Task Files Manually
+
+Drop or create markdown files in the \`tasks/\` directory:
+
+\`\`\`bash
+tasks/
+├── implement-user-auth.md
+├── fix-login-bug.md
+└── refactor-api-endpoints.md
+\`\`\`
+
+### 2. Use the Dashboard
+
+1. Start taskyard: \`npx taskyard start\`
+2. Open dashboard: \`http://localhost:3456\`
+3. Click the + button to create new tasks
+4. Drag and drop tasks between columns
+
+### 3. Agent-Friendly Task Format
+
+For best results with AI agents, structure tasks like this:
+
+\`\`\`markdown
+# Task Title
+
+## Description
+Clear description of what needs to be done.
+
+## Requirements
+- Specific requirement 1
+- Specific requirement 2
+- Acceptance criteria
+
+## Context
+Any additional context, links, or background information.
+
+## Files to Modify
+- \`src/components/Login.tsx\`
+- \`src/auth/index.ts\`
+\`\`\`
+
+### 4. Task States
+
+Tasks automatically move through these states:
+- **backlog** — Available for agents to claim
+- **in-progress** — Being worked on
+- **review** — Completed, awaiting review
+- **blocked** — Stuck, needs attention
+- **done** — Completed and approved
+
+### 5. Task Organization
+
+Organize tasks using subdirectories:
+
+\`\`\`bash
+tasks/
+├── features/
+│   ├── user-authentication.md
+│   └── payment-integration.md
+├── bugs/
+│   ├── login-error.md
+│   └── mobile-layout.md
+└── maintenance/
+    ├── update-dependencies.md
+    └── optimize-performance.md
+\`\`\`
+
+## Agent Commands
+
+Tell agents to work on tasks:
+
+- **"go look for tasks"** — Agent scans backlog and picks work
+- **"work on the login bug"** — Agent finds and claims specific task
+- **"check task status"** — View current board state
+
+## Files Created
+
+When working on tasks, agents create files in:
+- \`notes/\` — Research, planning, meeting notes
+- \`artifacts/\` — Generated code, configs, documentation
+- \`projects/\` — Completed project outputs
+
+See \`AGENTS.md\` for detailed agent protocols and \`tasks/examples/\` for example tasks.
+`;
+}
+
+function tasksReadmeTemplate(project: string, features?: string[]) {
+  return `# Tasks Directory
+
+This directory contains all tasks for the ${project} project. Tasks are automatically detected and managed by taskyard.
+
+## Structure
+
+\`\`\`
+tasks/
+├── README.md              (this file)
+├── examples/              (example tasks - safe to delete)
+│   ├── example-feature.md
+│   └── example-bugfix.md
+├── features/              (new features)
+├── bugs/                  (bug fixes)
+└── maintenance/           (upkeep tasks)
+\`\`\`
+
+## Creating Tasks
+
+1. **Manual**: Create \`.md\` files in this directory
+2. **Dashboard**: Use the web UI at \`http://localhost:3456\`
+3. **Template**: Copy from \`examples/\` directory
+
+## Task Lifecycle
+
+1. **Created** → File appears in \`tasks/\`
+2. **Claimed** → Agent calls \`claim_task\`
+3. **In Progress** → Agent works and logs progress
+4. **Complete** → Agent calls \`complete_task\`
+5. **Reviewed** → Human approves and marks done
+
+## Best Practices
+
+- Use clear, descriptive filenames
+- Include requirements and acceptance criteria
+- Organize in subdirectories by type
+- Reference specific files to modify
+- Add context and background info
+
+See \`../TASK_GUIDE.md\` for detailed instructions.
+`;
+}
+
+function exampleTaskTemplate(project: string, features?: string[]) {
+  return `# Add Dark Mode Toggle
+
+## Description
+Implement a dark mode toggle in the application header that allows users to switch between light and dark themes.
+
+## Requirements
+- [ ] Add toggle button in the main navigation header
+- [ ] Persist theme preference in localStorage
+- [ ] Apply theme consistently across all components
+- [ ] Include smooth transitions between themes
+- [ ] Support system preference detection
+
+## Acceptance Criteria
+- Toggle button is visually appealing and accessible
+- Theme persists across browser sessions
+- All text and UI elements are readable in both modes
+- Transitions are smooth (≤300ms)
+- System theme is detected on first visit
+
+## Context
+Users have requested dark mode support for better accessibility and reduced eye strain during extended use.
+
+## Files to Modify
+- \`src/components/Header.tsx\`
+- \`src/hooks/useTheme.ts\`
+- \`src/styles/themes.css\`
+- \`src/context/ThemeProvider.tsx\`
+
+## Design Notes
+- Use CSS custom properties for theme variables
+- Follow existing color palette conventions
+- Ensure WCAG contrast compliance
+- Match design system patterns
+
+## Priority
+Medium - Nice to have feature that improves user experience
+`;
+}
+
+function exampleBugfixTemplate(project: string, features?: string[]) {
+  return `# Fix Login Form Validation Error
+
+## Description
+Login form shows "Invalid credentials" error even when credentials are correct on the first attempt. Works on second attempt.
+
+## Bug Report
+**Steps to reproduce:**
+1. Navigate to login page
+2. Enter valid username and password
+3. Click submit button
+4. Error appears despite correct credentials
+5. Submit again with same credentials → succeeds
+
+**Expected:** Login succeeds on first attempt with valid credentials
+**Actual:** Login fails first time, succeeds second time
+
+## Investigation Notes
+- Issue appears to be related to form state management
+- May be timing issue with validation
+- Only affects first login attempt in a session
+- No console errors visible
+
+## Files to Investigate
+- \`src/components/LoginForm.tsx\`
+- \`src/hooks/useAuth.ts\`
+- \`src/api/auth.ts\`
+- \`src/validation/authSchema.ts\`
+
+## Reproduction Environment
+- Browser: Chrome 120+, Firefox 115+
+- Device: Desktop and mobile
+- Frequency: 100% reproducible
+- Impact: All users affected
+
+## Priority
+High - Affects core user functionality and creates friction
+
+## Related Issues
+- Check for similar form validation problems
+- Review error handling patterns
+- Verify API response timing
+`;
 }

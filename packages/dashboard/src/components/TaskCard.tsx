@@ -1,65 +1,98 @@
 import { useBoardStore, type Task } from "../stores/board";
 import { HeartbeatDot } from "./HeartbeatDot";
+import { motion } from "framer-motion";
+import { ClockIcon, UserIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
 
-const PRIORITY_DOT: Record<string, string> = {
-  critical: "bg-red-500",
-  high:     "bg-amber-400",
-  medium:   "bg-blue-400",
-  low:      "bg-zinc-600",
+const PRIORITY_STYLES: Record<string, string> = {
+  critical: "priority-critical",
+  high: "priority-high",
+  medium: "priority-medium",
+  low: "priority-low",
 };
 
-export function TaskCard({ task }: { task: Task }) {
+interface TaskCardProps {
+  task: Task;
+  isDragging?: boolean;
+}
+
+export function TaskCard({ task, isDragging = false }: TaskCardProps) {
   const { selectTask, selectedTaskId } = useBoardStore();
   const isSelected = selectedTaskId === task.id;
   const isStalled = isTaskStalled(task);
 
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: isDragging ? 1 : 1.02 }}
+      whileTap={{ scale: 0.98 }}
       onClick={() => selectTask(isSelected ? null : task.id)}
       className={`
-        w-full text-left p-3 rounded border transition-all
+        w-full text-left p-4 rounded-lg border smooth-transition
+        magnetic-hover glow-hover
         ${isSelected
-          ? "border-zinc-500 bg-zinc-800"
-          : "border-zinc-800 bg-zinc-900 hover:border-zinc-700 hover:bg-zinc-850"
+          ? "border-focus bg-hover ring-1 ring-accent-primary/50"
+          : "border-theme bg-card hover:border-focus hover:bg-hover"
         }
-        ${isStalled ? "border-l-2 border-l-amber-500" : ""}
+        ${isStalled ? "border-l-4 border-l-accent-warning" : ""}
+        ${isDragging ? "shadow-xl ring-1 ring-accent-primary/30" : ""}
       `}
     >
-      {/* Header row: priority dot + ID + heartbeat */}
-      <div className="flex items-center gap-2 mb-1.5">
-        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${PRIORITY_DOT[task.priority]}`} />
-        <span className="text-xs text-zinc-500 font-mono">{task.id}</span>
+      {/* Header row: priority dot + ID + indicators */}
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${PRIORITY_STYLES[task.priority]}`} />
+        <span className="text-xs text-muted font-mono bg-tertiary px-1.5 py-0.5 rounded">
+          {task.id}
+        </span>
         <span className="flex-1" />
+
+        {/* Status indicators */}
         {task.status === "in-progress" && (
           <HeartbeatDot lastBeat={task.last_heartbeat} />
         )}
         {task.needs_handoff && (
-          <span className="text-xs text-amber-400 font-semibold">HANDOFF</span>
+          <div className="flex items-center gap-1 text-xs text-accent-warning font-semibold">
+            <ExclamationTriangleIcon className="w-3 h-3" />
+            <span className="hidden sm:inline">HANDOFF</span>
+          </div>
+        )}
+        {isStalled && (
+          <div className="flex items-center gap-1 text-xs text-accent-warning">
+            <ClockIcon className="w-3 h-3" />
+            <span className="hidden sm:inline">Stalled</span>
+          </div>
         )}
       </div>
 
       {/* Title */}
-      <p className="text-sm text-zinc-200 leading-snug">{task.title}</p>
+      <h4 className="text-sm text-primary leading-relaxed font-medium mb-3 line-clamp-2">
+        {task.title}
+      </h4>
 
-      {/* Footer: agent + tags */}
-      <div className="flex items-center gap-2 mt-2 flex-wrap">
+      {/* Footer: assignee + tags + attempt count */}
+      <div className="flex items-center gap-2 flex-wrap">
         {task.assigned_to && (
-          <span className="text-xs text-zinc-500 truncate max-w-[120px]">
-            ↳ {task.assigned_to}
-          </span>
+          <div className="flex items-center gap-1 text-xs text-secondary bg-tertiary px-2 py-1 rounded-md">
+            <UserIcon className="w-3 h-3" />
+            <span className="truncate max-w-[100px]">{task.assigned_to}</span>
+          </div>
         )}
+
         {task.tags.slice(0, 2).map(tag => (
-          <span key={tag} className="text-xs px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">
-            {tag}
+          <span key={tag} className="text-xs px-2 py-1 rounded-md bg-accent-primary/10 text-accent-primary font-medium">
+            #{tag}
           </span>
         ))}
+
+        {task.tags.length > 2 && (
+          <span className="text-xs text-muted">+{task.tags.length - 2}</span>
+        )}
+
         {task.attempt_count > 1 && (
-          <span className="text-xs text-red-400 ml-auto">
-            ×{task.attempt_count}
+          <span className="text-xs text-accent-danger ml-auto font-semibold">
+            Attempt {task.attempt_count}
           </span>
         )}
       </div>
-    </button>
+    </motion.button>
   );
 }
 
