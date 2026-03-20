@@ -4,7 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import type { FileStore } from "./store.js";
 import { createLogger } from "./logger.js";
-import { getDashboardPath } from "./utils/user-dir.js";
+// import { getDashboardPath } from "./utils/user-dir.js";
 
 // A thin HTTP layer so the dashboard can call MCP tools without a full
 // WebSocket transport. This runs alongside the stdio MCP server.
@@ -14,8 +14,9 @@ type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, ToolHandler>, port: number) {
   const logger = createLogger("http-adapter", store.root);
 
-  // Serve dashboard files from ~/.taskyard/dashboard (installed by CLI)
-  const dashboardDist = getDashboardPath();
+  // Serve dashboard files from bundled location within CLI package
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const dashboardDist = path.resolve(__dirname, "../../dashboard");
 
   logger.debug("HTTP adapter configuration", { port, dashboardDist });
 
@@ -120,9 +121,8 @@ export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, To
         <head><title>Dashboard Not Found</title></head>
         <body>
           <h1>Dashboard not available</h1>
-          <p>Dashboard assets not found. Please run:</p>
-          <code>taskyard init</code>
-          <p>to install the dashboard assets.</p>
+          <p>Dashboard assets not found in the CLI package bundle.</p>
+          <p>Please ensure the CLI package was built correctly with the bundled dashboard assets.</p>
         </body>
         </html>
       `);

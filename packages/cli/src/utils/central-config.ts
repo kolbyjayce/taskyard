@@ -74,7 +74,7 @@ function createDefaultProfiles(dashboardPort: number): MCPProfile[] {
       description: "Local installation using stdio communication",
       config: {
         command: "npx",
-        args: ["@taskyard/mcp-server", "--root", "{PROJECT_ROOT}"],
+        args: ["taskyard", "start", "--root", "{PROJECT_ROOT}"],
         env: {},
       },
     },

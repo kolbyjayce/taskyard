@@ -3,9 +3,7 @@
 # Taskyard Publishing Script
 # Usage: ./scripts/publish.sh [version] [--dry-run] [--beta]
 #
-# This script handles two-phase publishing:
-# 1. Publish MCP server first
-# 2. Update CLI to use the published MCP server, then publish CLI
+# This script publishes the consolidated taskyard CLI package
 
 set -e
 
@@ -41,7 +39,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-echo -e "${GREEN}🚀 Taskyard Two-Phase Publishing Script${NC}"
+echo -e "${GREEN}🚀 Taskyard Publishing Script${NC}"
 echo "================================================"
 
 # Check if we're in the right directory
@@ -108,63 +106,25 @@ if [[ "$DRY_RUN" == "false" ]]; then
 fi
 
 if [[ "$DRY_RUN" == "true" ]]; then
-  echo -e "${YELLOW}🔍 DRY RUN - Would execute two-phase publish:${NC}"
-  echo "  Phase 1: @taskyard/mcp-server@$VERSION"
-  echo "  Phase 2: taskyard@$VERSION (depending on published MCP server)"
+  echo -e "${YELLOW}🔍 DRY RUN - Would publish:${NC}"
+  echo "  taskyard@$VERSION"
 
   if [[ "$BETA" == "true" ]]; then
-    echo "  - Both published to 'beta' tag"
+    echo "  - Published to 'beta' tag"
   else
-    echo "  - Both published to 'latest' tag"
+    echo "  - Published to 'latest' tag"
   fi
 
   echo -e "${GREEN}✅ Dry run completed successfully${NC}"
   exit 0
 fi
 
-# PHASE 1: Publish MCP Server
+# Publish the consolidated CLI package
 echo ""
-echo -e "${BLUE}📦 PHASE 1: Publishing MCP Server${NC}"
-echo "======================================="
-cd packages/mcp-server
-
-if [[ "$BETA" == "true" ]]; then
-  npm publish --tag beta
-  echo -e "${GREEN}✅ Published @taskyard/mcp-server@$VERSION (beta)${NC}"
-else
-  npm publish
-  echo -e "${GREEN}✅ Published @taskyard/mcp-server@$VERSION${NC}"
-fi
-cd ../..
-
-# Wait for npm registry propagation
-echo -e "${YELLOW}⏳ Waiting 10 seconds for npm registry propagation...${NC}"
-sleep 10
-
-# PHASE 2: Update CLI dependency and publish CLI
-echo ""
-echo -e "${BLUE}📦 PHASE 2: Publishing CLI${NC}"
+echo -e "${BLUE}📦 Publishing taskyard CLI${NC}"
 echo "=========================="
 
 cd packages/cli
-
-# Install the exact version we just published
-echo -e "${YELLOW}🔄 Installing published MCP server dependency...${NC}"
-npm install @taskyard/mcp-server@$VERSION --save --save-exact
-
-# Verify the dependency was installed correctly
-INSTALLED_VERSION=$(node -p "require('./package.json').dependencies['@taskyard/mcp-server']")
-if [[ "$INSTALLED_VERSION" != "$VERSION" ]]; then
-  echo -e "${RED}❌ Error: Failed to install correct MCP server version${NC}"
-  echo "Expected: $VERSION, Got: $INSTALLED_VERSION"
-  exit 1
-fi
-
-echo -e "${GREEN}✅ CLI now depends on @taskyard/mcp-server@$INSTALLED_VERSION${NC}"
-
-# Rebuild CLI with correct dependency
-echo -e "${YELLOW}🔨 Rebuilding CLI with published dependency...${NC}"
-npm run build
 
 # Publish CLI
 echo -e "${YELLOW}🚀 Publishing CLI...${NC}"
@@ -198,21 +158,17 @@ Co-Authored-By: Kolby <kolbyjayce1@gmail.com>"
 fi
 
 echo ""
-echo -e "${GREEN}🎉 Two-phase publishing completed successfully!${NC}"
+echo -e "${GREEN}🎉 Publishing completed successfully!${NC}"
 echo ""
 echo -e "${YELLOW}📋 Installation commands:${NC}"
 if [[ "$BETA" == "true" ]]; then
   echo "  npx taskyard@$VERSION"
-  echo "  npm install @taskyard/mcp-server@$VERSION"
 else
   echo "  npx taskyard@latest"
-  echo "  npm install @taskyard/mcp-server@latest"
 fi
 echo ""
 echo -e "${YELLOW}🔗 NPM Links:${NC}"
 echo "  - https://www.npmjs.com/package/taskyard"
-echo "  - https://www.npmjs.com/package/@taskyard/mcp-server"
 echo ""
-echo -e "${BLUE}📊 Published packages:${NC}"
-echo "  1. @taskyard/mcp-server@$VERSION"
-echo "  2. taskyard@$VERSION (depends on published MCP server)"
+echo -e "${BLUE}📊 Published package:${NC}"
+echo "  taskyard@$VERSION (consolidated CLI with integrated MCP server and dashboard)"

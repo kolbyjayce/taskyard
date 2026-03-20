@@ -5,7 +5,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { createCLILogger, LogLevel } from "../logger.js";
 import { createDaemonManager } from "../daemon.js";
-import { ensureUserDir, installDashboardAssets, isDashboardInstalled } from "../utils/user-dir.js";
+import { ensureUserDir } from "../utils/user-dir.js";
 import {
   loadGlobalConfig,
   loadProjectRegistry,
@@ -46,20 +46,9 @@ export async function startCommand(options: StartOptions) {
   const logLevel = logLevelMap[options.logLevel.toLowerCase()] ?? LogLevel.INFO;
   const logger = createCLILogger("start", root, logLevel);
 
-  // Ensure user directory and dashboard assets are ready before starting any mode
+  // Ensure user directory exists
   const spinner = ora("Preparing environment...").start();
   await ensureUserDir();
-
-  if (options.dashboard && !(await isDashboardInstalled())) {
-    spinner.text = "Installing dashboard assets...";
-    try {
-      await installDashboardAssets();
-      logger.info("Dashboard assets installed");
-    } catch (error) {
-      spinner.warn(chalk.yellow("Failed to install dashboard assets"));
-      logger.error("Dashboard installation failed", { error: String(error) });
-    }
-  }
   spinner.succeed("Environment ready");
 
   // Handle background mode
@@ -87,14 +76,19 @@ export async function startCommand(options: StartOptions) {
     mode: isCentralMode ? "central" : "local"
   });
 
-  // Start MCP server (via the installed package)
+  // Start MCP server (via the integrated module)
   const mcpSpinner = ora("Starting MCP server...").start();
 
-  logger.debug("Resolving MCP server path");
-  const mcpServerURL = await import.meta.resolve("@taskyard/mcp-server");
-  const mcpServerPath = fileURLToPath(mcpServerURL);
+  logger.debug("Starting integrated MCP server");
 
-  logger.debug("Spawning MCP server process", { path: mcpServerPath, port });
+  // Import and start the MCP server directly
+  const { startServer } = await import("../mcp-server/index.js");
+
+  // Start the MCP server in a subprocess using spawn for consistency with existing architecture
+  const __dirname = path.dirname(fileURLToPath(import.meta.url));
+  const mcpServerPath = path.resolve(__dirname, "../mcp-server/index.js");
+
+  logger.debug("Spawning integrated MCP server process", { path: mcpServerPath, port });
   const mcp = spawn(
     process.execPath,
     isCentralMode

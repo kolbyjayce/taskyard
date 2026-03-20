@@ -71,18 +71,21 @@ export class DaemonManager {
 
     this.logger.info("Starting daemon", options);
 
-    // Import the start command implementation directly for daemon mode
+    // Start MCP server directly using built CLI entry point
     const { fileURLToPath } = await import("url");
-    const mcpServerURL = await import.meta.resolve("@taskyard/mcp-server");
-    const mcpServerPath = fileURLToPath(mcpServerURL);
+    const currentModuleUrl = import.meta.url;
+    const currentModulePath = fileURLToPath(currentModuleUrl);
+    const cliEntryPath = path.resolve(path.dirname(currentModulePath), "index.js");
 
     // Start MCP server directly as detached process
     const child = spawn(
       process.execPath,
       [
-        mcpServerPath,
+        cliEntryPath,
+        "start",
         "--root", this.root,
         "--http-port", String(options.port),
+        "--daemon"
       ],
       {
         detached: true,

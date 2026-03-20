@@ -5,7 +5,7 @@ import ora from "ora";
 import prompts from "prompts";
 import { simpleGit } from "simple-git";
 import { createCLILogger, LogLevel } from "../logger.js";
-import { ensureUserDir, installDashboardAssets } from "../utils/user-dir.js";
+import { ensureUserDir } from "../utils/user-dir.js";
 import {
   ensureCentralConfig,
   loadGlobalConfig,
@@ -165,14 +165,8 @@ export async function initCommand(options: InitOptions) {
   await ensureUserDir();
 
   if (features?.includes("dashboard")) {
-    spinner.text = "Installing dashboard assets...";
-    try {
-      await installDashboardAssets();
-      logger.info("Dashboard assets installed successfully");
-    } catch (error) {
-      logger.warn("Failed to install dashboard assets", { error: String(error) });
-      spinner.warn(chalk.yellow("Dashboard assets installation failed - dashboard may not work"));
-    }
+    spinner.text = "Dashboard enabled (bundled in CLI)...";
+    logger.info("Dashboard enabled - assets are bundled with CLI");
   }
 
   // 6. Write MCP config for Claude Desktop / Cursor / other hosts

@@ -23,7 +23,6 @@ function checkPublishReady() {
   // Check if all packages have the same version
   const rootPkg = readPackageJson('.');
   const cliPkg = readPackageJson('packages/cli');
-  const mcpPkg = readPackageJson('packages/mcp-server');
   const dashboardPkg = readPackageJson('packages/dashboard');
 
   const targetVersion = rootPkg.version;
@@ -33,7 +32,6 @@ function checkPublishReady() {
   // Version checks
   const packages = [
     { name: 'CLI', pkg: cliPkg, path: 'packages/cli' },
-    { name: 'MCP Server', pkg: mcpPkg, path: 'packages/mcp-server' },
     { name: 'Dashboard', pkg: dashboardPkg, path: 'packages/dashboard' }
   ];
 
@@ -44,19 +42,13 @@ function checkPublishReady() {
     if (!match) hasErrors = true;
   }
 
-  // Dependency checks
-  console.log('\n🔗 Dependency Checks:');
-  const cliMcpDep = cliPkg.dependencies['@taskyard/mcp-server'];
-  // Accept both exact version and caret version for now
-  const depMatch = cliMcpDep === targetVersion || cliMcpDep === `^${targetVersion}`;
-  console.log(`  ${depMatch ? '✅' : '❌'} CLI → MCP Server: ${cliMcpDep}`);
-  if (!depMatch) hasErrors = true;
+  console.log('\n✅ No external dependencies to check (MCP server integrated into CLI)');
 
   // Build artifact checks
   console.log('\n🏗️  Build Artifacts:');
   const distChecks = [
     { name: 'CLI dist/', path: 'packages/cli/dist' },
-    { name: 'MCP Server dist/', path: 'packages/mcp-server/dist' },
+    { name: 'CLI dashboard/', path: 'packages/cli/dashboard' },
     { name: 'Dashboard dist/', path: 'packages/dashboard/dist' }
   ];
 
@@ -69,8 +61,7 @@ function checkPublishReady() {
   // publishConfig checks
   console.log('\n🚀 Publish Config:');
   const publishChecks = [
-    { name: 'CLI publishConfig', pkg: cliPkg },
-    { name: 'MCP Server publishConfig', pkg: mcpPkg }
+    { name: 'CLI publishConfig', pkg: cliPkg }
   ];
 
   for (const { name, pkg } of publishChecks) {
@@ -81,14 +72,9 @@ function checkPublishReady() {
 
   // Files config checks
   console.log('\n📁 Files Config:');
-  for (const { name, pkg } of [
-    { name: 'CLI', pkg: cliPkg },
-    { name: 'MCP Server', pkg: mcpPkg }
-  ]) {
-    const hasFiles = Array.isArray(pkg.files) && pkg.files.length > 0;
-    console.log(`  ${hasFiles ? '✅' : '❌'} ${name} files array`);
-    if (!hasFiles) hasErrors = true;
-  }
+  const hasFiles = Array.isArray(cliPkg.files) && cliPkg.files.length > 0;
+  console.log(`  ${hasFiles ? '✅' : '❌'} CLI files array`);
+  if (!hasFiles) hasErrors = true;
 
   console.log('\n' + '='.repeat(50));
 

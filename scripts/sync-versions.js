@@ -24,7 +24,6 @@ function syncVersions(targetVersion) {
   const packages = [
     { path: '.', name: 'root' },
     { path: 'packages/cli', name: 'taskyard' },
-    { path: 'packages/mcp-server', name: '@taskyard/mcp-server' },
     { path: 'packages/dashboard', name: '@taskyard/dashboard' }
   ];
 
@@ -47,18 +46,6 @@ function syncVersions(targetVersion) {
     } else {
       console.log(`  ✅ ${pkg.name}: ${packageData.version} (already synced)`);
     }
-  }
-
-  // Update CLI dependency to MCP server
-  const cliPkg = readPackageJson('packages/cli');
-  const currentMcpDep = cliPkg.dependencies['@taskyard/mcp-server'];
-
-  if (currentMcpDep !== targetVersion) {
-    console.log(`  🔗 CLI dependency: ${currentMcpDep} → ${targetVersion}`);
-    cliPkg.dependencies['@taskyard/mcp-server'] = targetVersion;
-    writePackageJson('packages/cli', cliPkg);
-  } else {
-    console.log(`  ✅ CLI dependency: ${currentMcpDep} (already synced)`);
   }
 
   console.log(`\n✅ All packages synced to version ${targetVersion}`);

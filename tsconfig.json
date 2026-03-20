@@ -1,7 +1,6 @@
 {
   "references": [
     { "path": "./packages/cli" },
-    { "path": "./packages/mcp-server" },
     { "path": "./packages/dashboard" }
   ],
   "files": []
