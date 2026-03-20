@@ -2,7 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import { FileStore } from "./store.js";
 import { Config } from "./config.js";
-import { Task, TaskStatus } from "./schema.js";
+import { Task, TaskStatusType } from "./schema.js";
 import { TaskStore } from "./store-interface.js";
 
 interface ProjectRegistry {
@@ -83,7 +83,7 @@ export class MultiProjectStore {
    */
   async listTasks(
     projectPath?: string,
-    status?: TaskStatus
+    status?: TaskStatusType
   ): Promise<Array<Task & { projectPath: string; projectName: string }>> {
     const registry = await this.loadProjectRegistry();
 
@@ -170,36 +170,35 @@ export class MultiProjectStore {
   /**
    * Update task in its specific project
    */
-  async updateTask(taskId: string, updates: Partial<Task>, projectPath?: string): Promise<Task | null> {
-    // First find the task if project not specified
-    if (!projectPath) {
-      const taskWithProject = await this.getTask(taskId);
-      if (!taskWithProject) return null;
-      projectPath = taskWithProject.projectPath;
-    }
+  async updateTask(taskId: string, updates: Partial<Task>): Promise<Task | null> {
+    // Find project path if not provided
+    // Find project path since this method doesn't take projectPath as parameter
+    const taskWithProject = await this.getTask(taskId);
+    if (!taskWithProject) return null;
+    const projectPath = taskWithProject.projectPath;
 
     const store = await this.getProjectStore(projectPath);
-    return store.updateTask(taskId, updates);
+    return store.updateTask("default", taskId, updates);
   }
 
   /**
    * Create task in specified project
    */
-  async createTask(task: Omit<Task, "id">, projectPath: string): Promise<Task> {
+  async createTask(task: Omit<Task, "id">, projectPath = "default"): Promise<Task> {
     const store = await this.getProjectStore(projectPath);
-    return store.createTask(task);
+    return store.createTask(projectPath, task);
   }
 
   /**
    * Get aggregated status across all projects
    */
   async getAggregatedStatus(): Promise<{
-    projects: Array<{ name: string; path: string; taskCounts: Record<TaskStatus, number> }>;
-    total: Record<TaskStatus, number>;
+    projects: Array<{ name: string; path: string; taskCounts: Record<TaskStatusType, number> }>;
+    total: Record<TaskStatusType, number>;
   }> {
     const registry = await this.loadProjectRegistry();
     const projects = [];
-    const total: Record<TaskStatus, number> = {
+    const total: Record<TaskStatusType, number> = {
       backlog: 0,
       "in-progress": 0,
       review: 0,
@@ -220,7 +219,7 @@ export class MultiProjectStore {
 
         // Add to totals
         for (const [status, count] of Object.entries(taskCounts)) {
-          total[status as TaskStatus] += count;
+          total[status as TaskStatusType] += count;
         }
       } catch (error) {
         // Skip inaccessible projects
@@ -244,36 +243,31 @@ export class MultiProjectStore {
   /**
    * Forward other operations to appropriate project store
    */
-  async claimTask(taskId: string, agentId: string, projectPath?: string): Promise<Task | null> {
-    if (!projectPath) {
-      const taskWithProject = await this.getTask(taskId);
-      if (!taskWithProject) return null;
-      projectPath = taskWithProject.projectPath;
-    }
+  async claimTask(taskId: string, agentId: string): Promise<Task | null> {
+    const taskWithProject = await this.getTask(taskId);
+    if (!taskWithProject) return null;
+    const projectPath = taskWithProject.projectPath;
 
     const store = await this.getProjectStore(projectPath);
     return store.claimTask(taskId, agentId);
   }
 
-  async releaseTask(taskId: string, agentId: string, projectPath?: string): Promise<Task | null> {
-    if (!projectPath) {
-      const taskWithProject = await this.getTask(taskId);
-      if (!taskWithProject) return null;
-      projectPath = taskWithProject.projectPath;
-    }
+  async releaseTask(taskId: string, agentId: string): Promise<Task | null> {
+    const taskWithProject = await this.getTask(taskId);
+    if (!taskWithProject) return null;
+    const projectPath = taskWithProject.projectPath;
 
     const store = await this.getProjectStore(projectPath);
     return store.releaseTask(taskId, agentId);
   }
 
-  async appendLog(taskId: string, message: string, agentId: string, projectPath?: string): Promise<void> {
-    if (!projectPath) {
-      const taskWithProject = await this.getTask(taskId);
-      if (!taskWithProject) throw new Error(`Task ${taskId} not found`);
-      projectPath = taskWithProject.projectPath;
-    }
+  async appendLog(taskId: string, message: string, agentId: string): Promise<void> {
+    const taskWithProject = await this.getTask(taskId);
+    if (!taskWithProject) throw new Error(`Task ${taskId} not found`);
+    const projectPath = taskWithProject.projectPath;
 
     const store = await this.getProjectStore(projectPath);
-    return store.appendLog(taskId, message, agentId);
+    return store.appendLog("default", taskId, agentId, message);
   }
+
 }

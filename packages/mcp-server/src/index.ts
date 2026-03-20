@@ -6,7 +6,7 @@ import { registerStatusTools } from "./tools/status.js";
 import { Watchdog } from "./watchdog/watchdog.js";
 import { FileStore } from "./store.js";
 import { MultiProjectStore } from "./multi-project-store.js";
-import { TaskStore, FileStoreAdapter } from "./store-interface.js";
+import { TaskStore, FileStoreAdapter, MultiProjectStoreAdapter } from "./store-interface.js";
 import { loadConfig } from "./config.js";
 import { createHttpAdapter } from "./http-adapter.js";
 import { createLogger, LogLevel } from "./logger.js";
@@ -23,7 +23,7 @@ export async function startServer(root: string, httpPort?: number, centralMode =
   // Use multi-project store in central mode, single-project store otherwise
   const rawStore = centralMode ? new MultiProjectStore(config) : new FileStore(root, config);
   const store: TaskStore = centralMode
-    ? rawStore as MultiProjectStore
+    ? new MultiProjectStoreAdapter(rawStore as MultiProjectStore)
     : new FileStoreAdapter(rawStore as FileStore);
   const server = new McpServer({
     name: "taskyard",
@@ -35,19 +35,30 @@ export async function startServer(root: string, httpPort?: number, centralMode =
 
   // Register all tool groups and collect handlers
   logger.debug("Registering tool groups");
-  registerTaskTools(server, store, toolHandlers);
-  registerGitTools(server, store, toolHandlers);
-  registerStatusTools(server, store, toolHandlers);
+  if (!centralMode) {
+    // In single-project mode, register all FileStore-based tools
+    registerTaskTools(server, rawStore as FileStore, toolHandlers);
+    registerGitTools(server, rawStore as FileStore, toolHandlers);
+    registerStatusTools(server, rawStore as FileStore, toolHandlers);
+  } else {
+    // In central mode, tools would need to be adapted for MultiProjectStore
+    // For now, we skip file-based tools that assume single project
+    logger.warn("Central mode detected: some tools disabled (require FileStore)");
+  }
 
-  // Start watchdog (heartbeat expiry + stall detection)
-  logger.debug("Starting watchdog");
-  const watchdog = new Watchdog(rawStore as FileStore, config);
-  watchdog.start();
+  // Start watchdog (heartbeat expiry + stall detection) - only for FileStore
+  if (!centralMode) {
+    logger.debug("Starting watchdog");
+    const watchdog = new Watchdog(rawStore as FileStore, config);
+    watchdog.start();
+  }
 
   // Start HTTP adapter for dashboard if port specified
-  if (httpPort) {
+  if (httpPort && !centralMode) {
     logger.info("Starting HTTP adapter for dashboard", { port: httpPort });
-    createHttpAdapter(store, toolHandlers, httpPort);
+    createHttpAdapter(rawStore as FileStore, toolHandlers, httpPort);
+  } else if (httpPort && centralMode) {
+    logger.warn("HTTP adapter disabled in central mode (requires FileStore)");
   }
 
   // Connect transport

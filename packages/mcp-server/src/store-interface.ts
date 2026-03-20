@@ -1,4 +1,4 @@
-import { Task, TaskStatus } from "./schema.js";
+import { Task, TaskStatusType } from "./schema.js";
 
 /**
  * Common interface for task stores
@@ -6,7 +6,7 @@ import { Task, TaskStatus } from "./schema.js";
  */
 export interface TaskStore {
   // Task operations
-  listTasks(status?: TaskStatus): Promise<Task[]>;
+  listTasks(status?: TaskStatusType): Promise<Task[]>;
   getTask?(taskId: string): Promise<Task | null>;
   updateTask(taskId: string, updates: Partial<Task>): Promise<Task | null>;
   createTask(task: Omit<Task, "id">): Promise<Task>;
@@ -17,7 +17,7 @@ export interface TaskStore {
   appendLog?(taskId: string, message: string, agentId: string): Promise<void>;
 
   // Status operations
-  getStatusCounts?(): Promise<Record<TaskStatus, number>>;
+  getStatusCounts?(): Promise<Record<TaskStatusType, number>>;
 }
 
 /**
@@ -29,7 +29,7 @@ export class FileStoreAdapter implements TaskStore {
     private defaultProject: string = "default"
   ) {}
 
-  async listTasks(status?: TaskStatus): Promise<Task[]> {
+  async listTasks(status?: TaskStatusType): Promise<Task[]> {
     return this.fileStore.listTasks(this.defaultProject, status ? { status } : undefined);
   }
 
@@ -51,10 +51,7 @@ export class FileStoreAdapter implements TaskStore {
   }
 
   async createTask(task: Omit<Task, "id">): Promise<Task> {
-    return this.fileStore.createTask(this.defaultProject, {
-      title: task.title,
-      ...task,
-    });
+    return this.fileStore.createTask(this.defaultProject, task);
   }
 
   async claimTask(taskId: string, agentId: string): Promise<Task | null> {
@@ -72,9 +69,9 @@ export class FileStoreAdapter implements TaskStore {
     return this.fileStore.appendLog(this.defaultProject, taskId, agentId, message);
   }
 
-  async getStatusCounts(): Promise<Record<TaskStatus, number>> {
+  async getStatusCounts(): Promise<Record<TaskStatusType, number>> {
     const tasks = await this.listTasks();
-    const counts: Record<TaskStatus, number> = {
+    const counts: Record<TaskStatusType, number> = {
       backlog: 0,
       "in-progress": 0,
       review: 0,
@@ -87,5 +84,54 @@ export class FileStoreAdapter implements TaskStore {
     }
 
     return counts;
+  }
+}
+
+/**
+ * Adapter to make MultiProjectStore compatible with TaskStore interface
+ */
+export class MultiProjectStoreAdapter implements TaskStore {
+  constructor(
+    private multiStore: import("./multi-project-store.js").MultiProjectStore
+  ) {}
+
+  async listTasks(status?: TaskStatusType): Promise<Task[]> {
+    const tasksWithProject = await this.multiStore.listTasks(undefined, status);
+    // Strip project metadata to return plain Task objects
+    return tasksWithProject.map(({ projectPath, projectName, ...task }) => task);
+  }
+
+  async getTask(taskId: string): Promise<Task | null> {
+    const taskWithProject = await this.multiStore.getTask(taskId);
+    if (!taskWithProject) return null;
+    // Strip project metadata
+    const { projectPath, projectName, ...task } = taskWithProject;
+    return task;
+  }
+
+  async updateTask(taskId: string, updates: Partial<Task>): Promise<Task | null> {
+    return this.multiStore.updateTask(taskId, updates);
+  }
+
+  async createTask(task: Omit<Task, "id">): Promise<Task> {
+    // Use default project for interface compatibility
+    return this.multiStore.createTask(task, "default");
+  }
+
+  async claimTask(taskId: string, agentId: string): Promise<Task | null> {
+    return this.multiStore.claimTask(taskId, agentId);
+  }
+
+  async releaseTask(taskId: string, agentId: string): Promise<Task | null> {
+    return this.multiStore.releaseTask(taskId, agentId);
+  }
+
+  async appendLog(taskId: string, message: string, agentId: string): Promise<void> {
+    return this.multiStore.appendLog(taskId, message, agentId);
+  }
+
+  async getStatusCounts(): Promise<Record<TaskStatusType, number>> {
+    const aggregated = await this.multiStore.getAggregatedStatus();
+    return aggregated.total;
   }
 }

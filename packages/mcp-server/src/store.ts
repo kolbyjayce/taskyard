@@ -1,7 +1,7 @@
 import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
-import { TaskFrontmatter, type Task, isValidTransition } from "./schema.js";
+import { TaskFrontmatter, type Task, TaskStatusType, isValidTransition } from "./schema.js";
 import type { Config } from "./config.js";
 
 export class FileStore {
@@ -205,6 +205,44 @@ ${checkpoint.notes}
 
   lockPath(project: string, taskId: string) {
     return path.join(this.taskDir(project), `${taskId}.lock`);
+  }
+
+  // Additional methods to support TaskStore interface when used directly
+  async getTask(taskId: string): Promise<Task | null> {
+    try {
+      const task = await this.readTask("default", taskId);
+      return task;
+    } catch {
+      return null;
+    }
+  }
+
+  async getStatusCounts(): Promise<Record<TaskStatusType, number>> {
+    const tasks = await this.listTasks("default");
+    const counts: Record<TaskStatusType, number> = {
+      backlog: 0,
+      "in-progress": 0,
+      review: 0,
+      done: 0,
+      blocked: 0,
+    };
+
+    for (const task of tasks) {
+      counts[task.status]++;
+    }
+
+    return counts;
+  }
+
+  async claimTask(taskId: string, agentId: string): Promise<Task | null> {
+    const acquired = await this.acquireLock("default", taskId, agentId);
+    if (!acquired) return null;
+    return this.getTask(taskId);
+  }
+
+  async releaseTask(taskId: string, agentId: string): Promise<Task | null> {
+    await this.releaseLock("default", taskId);
+    return this.getTask(taskId);
   }
 }
 
