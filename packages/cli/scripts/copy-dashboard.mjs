@@ -18,19 +18,31 @@ async function copyDashboard() {
     console.log(`Source: ${source}`);
     console.log(`Target: ${target}`);
 
-    // Check if source exists - exit gracefully if not
+    // Check if source exists - fail if not accessible
     try {
       await access(source);
     } catch (error) {
-      console.log('Dashboard files not found, skipping copy');
-      process.exit(0);
+      console.error('Error accessing dashboard source directory:', {
+        path: source,
+        error: error.message,
+        code: error.code
+      });
+      process.exit(1);
     }
 
     // Remove existing target directory if it exists
     try {
       await rm(target, { recursive: true, force: true });
     } catch (error) {
-      // Ignore if target doesn't exist
+      // Only ignore if target doesn't exist, otherwise fail
+      if (error.code !== 'ENOENT') {
+        console.error('Error removing target directory:', {
+          path: target,
+          error: error.message,
+          code: error.code
+        });
+        process.exit(1);
+      }
     }
 
     // Create target directory structure

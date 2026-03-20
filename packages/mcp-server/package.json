@@ -30,8 +30,7 @@
     "ai-agents"
   ],
   "scripts": {
-    "build": "tsc && npm run copy-dashboard",
-    "copy-dashboard": "node ./scripts/copy-dashboard.mjs",
+    "build": "tsc",
     "dev": "tsc --watch",
     "dev:start": "concurrently \"tsc --watch\" \"nodemon --watch dist dist/index.js --root . --http-port 3456\"",
     "start": "node dist/index.js",

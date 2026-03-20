@@ -235,12 +235,33 @@ ${checkpoint.notes}
   }
 
   async claimTask(taskId: string, agentId: string): Promise<Task | null> {
+    // First check if task exists before acquiring lock
+    const task = await this.getTask(taskId);
+    if (!task) return null;
+
     const acquired = await this.acquireLock("default", taskId, agentId);
-    if (!acquired) return null;
-    return this.getTask(taskId);
+    if (!acquired) {
+      return null;
+    }
+
+    // Double-check task still exists after acquiring lock
+    const verifiedTask = await this.getTask(taskId);
+    if (!verifiedTask) {
+      // Task was deleted after we acquired lock, release it
+      await this.releaseLock("default", taskId);
+      return null;
+    }
+
+    return verifiedTask;
   }
 
   async releaseTask(taskId: string, agentId: string): Promise<Task | null> {
+    // Verify the agentId matches the lock owner before releasing
+    const lockInfo = await this.getLockInfo("default", taskId);
+    if (!lockInfo || lockInfo.agent_id !== agentId) {
+      return null; // Cannot release lock owned by different agent or no lock exists
+    }
+
     await this.releaseLock("default", taskId);
     return this.getTask(taskId);
   }

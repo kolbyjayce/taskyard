@@ -55,12 +55,23 @@ export class FileStoreAdapter implements TaskStore {
   }
 
   async claimTask(projectId: string, taskId: string, agentId: string): Promise<Task | null> {
+    // First check if task exists before acquiring lock
+    const task = await this.getTask(projectId, taskId);
+    if (!task) return null;
+
     const acquired = await this.fileStore.acquireLock(projectId, taskId, agentId);
     if (!acquired) return null;
-    return this.getTask(projectId, taskId);
+
+    return task;
   }
 
   async releaseTask(projectId: string, taskId: string, agentId: string): Promise<Task | null> {
+    // Verify the agentId matches the lock owner before releasing
+    const lockInfo = await this.fileStore.getLockInfo(projectId, taskId);
+    if (!lockInfo || lockInfo.agent_id !== agentId) {
+      return null; // Cannot release lock owned by different agent
+    }
+
     await this.fileStore.releaseLock(projectId, taskId);
     return this.getTask(projectId, taskId);
   }

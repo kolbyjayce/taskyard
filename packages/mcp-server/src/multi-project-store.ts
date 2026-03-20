@@ -22,16 +22,14 @@ interface ProjectRegistry {
  */
 export class MultiProjectStore {
   private stores: Map<string, FileStore> = new Map();
-  private projectRegistry: ProjectRegistry | null = null;
 
   constructor(private config: Config) {}
 
   /**
    * Load project registry from central config
+   * Always reads from disk to ensure fresh project data
    */
   private async loadProjectRegistry(): Promise<ProjectRegistry> {
-    if (this.projectRegistry) return this.projectRegistry;
-
     const registryPath = path.join(
       process.env.HOME || process.env.USERPROFILE || ".",
       ".taskyard/config/projects.json"
@@ -39,8 +37,7 @@ export class MultiProjectStore {
 
     try {
       const content = await fs.readFile(registryPath, "utf-8");
-      this.projectRegistry = JSON.parse(content);
-      return this.projectRegistry!;
+      return JSON.parse(content);
     } catch {
       return { projects: {} };
     }
