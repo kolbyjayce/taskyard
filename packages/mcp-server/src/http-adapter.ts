@@ -13,9 +13,10 @@ type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, ToolHandler>, port: number) {
   const logger = createLogger("http-adapter", store.root);
 
+  // Try to find dashboard files - in published packages they should be bundled
   const dashboardDist = path.join(
     path.dirname(fileURLToPath(import.meta.url)),
-    "../../dashboard/dist"
+    "dashboard"
   );
 
   logger.debug("HTTP adapter configuration", { port, dashboardDist });

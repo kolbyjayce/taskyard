@@ -69,7 +69,7 @@ function App() {
         </div>
 
         <footer className="mt-8 text-center text-gray-500 text-sm">
-          <p>Drop task files in the <code className="bg-gray-800 px-2 py-1 rounded">tasks/</code> directory to get started</p>
+          <p>Drop task files in the <code className="bg-gray-800 px-2 py-1 rounded">.taskyard/tasks/</code> directory to get started</p>
         </footer>
       </main>
     </div>

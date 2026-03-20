@@ -186,7 +186,17 @@ ${checkpoint.notes}
   // ── Path helpers ──────────────────────────────────────────────────────────
 
   taskDir(project: string) {
-    return path.join(this.root, "projects", project, "tasks");
+    // Check if using global tasks directory (.taskyard/tasks) or project-specific (projects/{project}/tasks)
+    const globalTaskDir = path.join(this.root, ".taskyard", "tasks");
+    const projectTaskDir = path.join(this.root, "projects", project, "tasks");
+
+    // For the default project, prefer the global .taskyard/tasks directory
+    if (project === "default") {
+      return globalTaskDir;
+    }
+
+    // For other projects, use project-specific directory
+    return projectTaskDir;
   }
 
   taskPath(project: string, taskId: string) {
