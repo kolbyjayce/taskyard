@@ -184,9 +184,7 @@ if [[ "$BETA" == "false" ]]; then
   git add .
   git commit -m "chore: release v$VERSION
 
-🚀 Generated with [Claude Code](https://claude.ai/code)
-
-Co-Authored-By: Claude <noreply@anthropic.com>"
+Co-Authored-By: Kolby <kolbyjayce1@gmail.com>"
   git tag "v$VERSION"
 
   echo -e "${GREEN}📡 Push to remote? (y/N):${NC}"
