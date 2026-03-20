@@ -4,6 +4,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import type { FileStore } from "./store.js";
 import { createLogger } from "./logger.js";
+import { getDashboardPath } from "./utils/user-dir.js";
 
 // A thin HTTP layer so the dashboard can call MCP tools without a full
 // WebSocket transport. This runs alongside the stdio MCP server.
@@ -13,11 +14,8 @@ type ToolHandler = (args: Record<string, unknown>) => Promise<unknown>;
 export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, ToolHandler>, port: number) {
   const logger = createLogger("http-adapter", store.root);
 
-  // Try to find dashboard files - in published packages they should be bundled
-  const dashboardDist = path.join(
-    path.dirname(fileURLToPath(import.meta.url)),
-    "dashboard"
-  );
+  // Serve dashboard files from ~/.taskyard/dashboard (installed by CLI)
+  const dashboardDist = getDashboardPath();
 
   logger.debug("HTTP adapter configuration", { port, dashboardDist });
 
@@ -92,9 +90,21 @@ export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, To
       const content = await fs.readFile(filePath);
       res.writeHead(200, { "Content-Type": mime[ext] ?? "application/octet-stream" });
       res.end(content);
-    } catch {
-      res.writeHead(404);
-      res.end("Not found");
+    } catch (error) {
+      logger.debug("Failed to serve file", { filePath, error: String(error) });
+      res.writeHead(404, { "Content-Type": "text/html" });
+      res.end(`
+        <!DOCTYPE html>
+        <html>
+        <head><title>Dashboard Not Found</title></head>
+        <body>
+          <h1>Dashboard not available</h1>
+          <p>Dashboard assets not found. Please run:</p>
+          <code>taskyard init</code>
+          <p>to install the dashboard assets.</p>
+        </body>
+        </html>
+      `);
     }
   });
 

@@ -5,6 +5,7 @@ import chalk from "chalk";
 import ora from "ora";
 import { createCLILogger, LogLevel } from "../logger.js";
 import { createDaemonManager } from "../daemon.js";
+import { ensureUserDir, installDashboardAssets, isDashboardInstalled } from "../utils/user-dir.js";
 
 interface StartOptions {
   port: string;
@@ -47,8 +48,24 @@ export async function startCommand(options: StartOptions) {
 
   logger.info("Starting taskyard services", { root, port, dashboard: options.dashboard });
 
-  // 1. Start MCP server (via the installed package)
-  const spinner = ora("Starting MCP server...").start();
+  // 1. Ensure user directory and dashboard assets are ready
+  const spinner = ora("Preparing environment...").start();
+  await ensureUserDir();
+
+  if (options.dashboard && !(await isDashboardInstalled())) {
+    spinner.text = "Installing dashboard assets...";
+    try {
+      await installDashboardAssets();
+      logger.info("Dashboard assets installed");
+    } catch (error) {
+      spinner.warn(chalk.yellow("Failed to install dashboard assets"));
+      logger.error("Dashboard installation failed", { error: String(error) });
+    }
+  }
+
+  // 2. Start MCP server (via the installed package)
+  spinner.text = "Starting MCP server...";
+  spinner.start();
 
   logger.debug("Resolving MCP server path");
   const mcpServerURL = await import.meta.resolve("@taskyard/mcp-server");
@@ -90,20 +107,8 @@ export async function startCommand(options: StartOptions) {
     }
   });
 
-  // 2. In dev mode, also spin up the Vite dashboard dev server
-  if (options.dashboard && process.env.NODE_ENV === "development") {
-    logger.info("Starting Vite dev server for dashboard");
-    const dashboardRoot = path.resolve(__dirname, "../../dashboard");
-    const vite = spawn("npm", ["run", "dev"], {
-      cwd: dashboardRoot,
-      stdio: "inherit",
-      shell: true,
-    });
-    vite.on("exit", code => {
-      logger.error("Dashboard dev server exited", { code });
-      if (code !== 0) console.error(chalk.red(`Dashboard exited with code ${code}`));
-    });
-  }
+  // Note: Dashboard is now served directly by the MCP server from ~/.taskyard/dashboard
+  // No need for separate Vite dev server when running from installed package
 
   // Setup startup timeout
   const startupTimeout = setTimeout(() => {

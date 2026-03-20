@@ -10,7 +10,7 @@
     "packages/dashboard"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w packages/dashboard && npm run build -w packages/mcp-server && npm run build -w packages/cli",
     "dev": "concurrently -n \"mcp,dash\" -c \"blue,green\" \"npm run dev:start -w packages/mcp-server\" \"npm run dev -w packages/dashboard\"",
     "dev:build": "concurrently \"npm run dev -w packages/mcp-server\" \"npm run dev -w packages/dashboard\"",
     "test": "vitest run",

@@ -5,6 +5,7 @@ import ora from "ora";
 import prompts from "prompts";
 import { simpleGit } from "simple-git";
 import { createCLILogger, LogLevel } from "../logger.js";
+import { ensureUserDir, installDashboardAssets } from "../utils/user-dir.js";
 
 interface InitOptions {
   dir: string;
@@ -112,13 +113,28 @@ export async function initCommand(options: InitOptions) {
     await fs.writeFile(fullPath, content, { flag: options.force ? "w" : "wx" }).catch(() => {});
   }
 
-  // 5. Write MCP config for Claude Desktop / Cursor / other hosts
+  // 5. Setup ~/.taskyard directory and dashboard assets
+  spinner.text = "Setting up user directory...";
+  await ensureUserDir();
+
+  if (features?.includes("dashboard")) {
+    spinner.text = "Installing dashboard assets...";
+    try {
+      await installDashboardAssets();
+      logger.info("Dashboard assets installed successfully");
+    } catch (error) {
+      logger.warn("Failed to install dashboard assets", { error: String(error) });
+      spinner.warn(chalk.yellow("Dashboard assets installation failed - dashboard may not work"));
+    }
+  }
+
+  // 6. Write MCP config for Claude Desktop / Cursor / other hosts
   await writeMcpConfig(root);
 
-  // 6. Setup additional features
+  // 7. Setup additional features
   await setupFeatures(root, features, spinner, logger);
 
-  // 7. Initial commit
+  // 8. Initial commit
   await git.add(".").catch(() => {});
   await git.commit("chore: initialize taskyard").catch(() => {});
 
