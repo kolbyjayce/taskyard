@@ -9,9 +9,9 @@
     "packages/dashboard"
   ],
   "scripts": {
-    "build": "npm run build -w packages/cli",
-    "dev": "npm run dev -w packages/dashboard",
-    "dev:build": "npm run dev -w packages/dashboard",
+    "build": "npm run build -w @taskyard/cli",
+    "dev": "npm run dev -w @taskyard/dashboard",
+    "dev:build": "npm run dev -w @taskyard/dashboard",
     "test": "vitest run",
     "lint": "eslint packages/*/src",
     "typecheck": "tsc --build",
