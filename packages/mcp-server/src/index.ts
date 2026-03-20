@@ -5,20 +5,26 @@ import { registerGitTools } from "./tools/git.js";
 import { registerStatusTools } from "./tools/status.js";
 import { Watchdog } from "./watchdog/watchdog.js";
 import { FileStore } from "./store.js";
+import { MultiProjectStore } from "./multi-project-store.js";
+import { TaskStore, FileStoreAdapter } from "./store-interface.js";
 import { loadConfig } from "./config.js";
 import { createHttpAdapter } from "./http-adapter.js";
 import { createLogger, LogLevel } from "./logger.js";
 
-export async function startServer(root: string, httpPort?: number) {
+export async function startServer(root: string, httpPort?: number, centralMode = false) {
   const config = await loadConfig(root);
 
   // Initialize logger with debug level if DEBUG env var is set
   const logLevel = process.env.DEBUG ? LogLevel.DEBUG : LogLevel.INFO;
   const logger = createLogger("mcp-server", root, logLevel);
 
-  logger.info("Starting taskyard MCP server", { root, httpPort });
+  logger.info("Starting taskyard MCP server", { root, httpPort, centralMode });
 
-  const store = new FileStore(root, config);
+  // Use multi-project store in central mode, single-project store otherwise
+  const rawStore = centralMode ? new MultiProjectStore(config) : new FileStore(root, config);
+  const store: TaskStore = centralMode
+    ? rawStore as MultiProjectStore
+    : new FileStoreAdapter(rawStore as FileStore);
   const server = new McpServer({
     name: "taskyard",
     version: "0.1.0",
@@ -35,7 +41,7 @@ export async function startServer(root: string, httpPort?: number) {
 
   // Start watchdog (heartbeat expiry + stall detection)
   logger.debug("Starting watchdog");
-  const watchdog = new Watchdog(store, config);
+  const watchdog = new Watchdog(rawStore as FileStore, config);
   watchdog.start();
 
   // Start HTTP adapter for dashboard if port specified
@@ -52,7 +58,7 @@ export async function startServer(root: string, httpPort?: number) {
   logger.info("MCP server ready", { toolCount: toolHandlers.size });
 }
 
-// CLI entry: node dist/index.js --root /path/to/repo --http-port 3456
+// CLI entry: node dist/index.js --root /path/to/repo --http-port 3456 [--central]
 const args = process.argv.slice(2);
 const rootIdx = args.indexOf("--root");
 const root = rootIdx !== -1 ? args[rootIdx + 1] : process.cwd();
@@ -60,4 +66,6 @@ const root = rootIdx !== -1 ? args[rootIdx + 1] : process.cwd();
 const httpPortIdx = args.indexOf("--http-port");
 const httpPort = httpPortIdx !== -1 ? parseInt(args[httpPortIdx + 1], 10) : undefined;
 
-startServer(root, httpPort).catch(console.error);
+const centralMode = args.includes("--central");
+
+startServer(root, httpPort, centralMode).catch(console.error);

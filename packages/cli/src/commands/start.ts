@@ -6,17 +6,35 @@ import ora from "ora";
 import { createCLILogger, LogLevel } from "../logger.js";
 import { createDaemonManager } from "../daemon.js";
 import { ensureUserDir, installDashboardAssets, isDashboardInstalled } from "../utils/user-dir.js";
+import {
+  loadGlobalConfig,
+  loadProjectRegistry,
+  updateProjectAccess,
+  USER_DIR,
+} from "../utils/central-config.js";
 
 interface StartOptions {
   port: string;
   dashboard: boolean;
   background?: boolean;
   logLevel: string;
+  central?: boolean;
 }
 
 export async function startCommand(options: StartOptions) {
-  const root = process.cwd();
-  const port = parseInt(options.port, 10);
+  // Determine if this should be central mode
+  const globalConfig = await loadGlobalConfig().catch(() => null);
+  const isCentralMode = options.central || (globalConfig?.installation_type === "central");
+
+  // In central mode: server runs from ~/.taskyard but aggregates all registered projects
+  // In local mode: server runs from current directory only
+  const root = process.cwd(); // Always use current directory as root
+  const port = parseInt(options.port, 10) || (globalConfig?.dashboard_port ?? 3456);
+
+  // Update project access time if in central mode
+  if (isCentralMode) {
+    await updateProjectAccess(root).catch(() => {});
+  }
 
   // Parse log level from options
   const logLevelMap: Record<string, LogLevel> = {
@@ -46,7 +64,12 @@ export async function startCommand(options: StartOptions) {
     }
   }
 
-  logger.info("Starting taskyard services", { root, port, dashboard: options.dashboard });
+  logger.info("Starting taskyard services", {
+    root,
+    port,
+    dashboard: options.dashboard,
+    mode: isCentralMode ? "central" : "local"
+  });
 
   // 1. Ensure user directory and dashboard assets are ready
   const spinner = ora("Preparing environment...").start();
@@ -74,7 +97,9 @@ export async function startCommand(options: StartOptions) {
   logger.debug("Spawning MCP server process", { path: mcpServerPath, port });
   const mcp = spawn(
     process.execPath,
-    [mcpServerPath, "--root", root, "--http-port", String(port)],
+    isCentralMode
+      ? [mcpServerPath, "--root", root, "--http-port", String(port), "--central"]
+      : [mcpServerPath, "--root", root, "--http-port", String(port)],
     { stdio: ["inherit", "inherit", "pipe"] }
   );
 

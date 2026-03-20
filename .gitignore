@@ -17,3 +17,6 @@ tests/**/*.js
 !eslint.config.js
 !vitest.config.ts
 !scripts/*.js
+
+# taskyard project files
+/.taskyard

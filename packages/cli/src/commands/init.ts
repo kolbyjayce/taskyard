@@ -6,6 +6,14 @@ import prompts from "prompts";
 import { simpleGit } from "simple-git";
 import { createCLILogger, LogLevel } from "../logger.js";
 import { ensureUserDir, installDashboardAssets } from "../utils/user-dir.js";
+import {
+  ensureCentralConfig,
+  loadGlobalConfig,
+  registerProject,
+  generateMCPConfig,
+  loadMCPProfiles,
+  InstallationTypeSchema,
+} from "../utils/central-config.js";
 
 interface InitOptions {
   dir: string;
@@ -73,13 +81,49 @@ export async function initCommand(options: InitOptions) {
 
   console.log(chalk.bold("\n  📋 Taskyard Setup\n"));
 
-  const { projectName, features } = await prompts([
+  // Load existing central config and profiles
+  await ensureCentralConfig();
+  const globalConfig = await loadGlobalConfig();
+  const profiles = await loadMCPProfiles();
+
+  const { projectName, installationType, mcpProfile, features } = await prompts([
     {
       type: "text",
       name: "projectName",
       message: "Project name?",
       initial: path.basename(root),
       validate: (value) => value.length > 0 || "Project name is required",
+    },
+    {
+      type: "select",
+      name: "installationType",
+      message: "Installation type:",
+      choices: [
+        {
+          title: "Central (Recommended)",
+          value: "central",
+          description: "Single MCP server for all projects, HTTP communication",
+        },
+        {
+          title: "Local",
+          value: "local",
+          description: "Dedicated MCP server per project, stdio communication",
+        },
+      ],
+      initial: globalConfig.installation_type === "central" ? 0 : 1,
+    },
+    {
+      type: (prev) => prev === "central" ? "select" : null,
+      name: "mcpProfile",
+      message: "MCP Profile:",
+      choices: profiles
+        .filter(p => p.type === "http")
+        .map(p => ({
+          title: p.name,
+          value: p.name,
+          description: p.description,
+        })),
+      initial: 0,
     },
     {
       type: "multiselect",
@@ -99,6 +143,9 @@ export async function initCommand(options: InitOptions) {
     console.log(chalk.yellow("Setup cancelled"));
     process.exit(0);
   }
+
+  // Register project in central registry
+  await registerProject(root, projectName, mcpProfile);
 
   logger.info("Setup configuration", { projectName, features });
   spinner.start("Scaffolding...");
@@ -129,7 +176,7 @@ export async function initCommand(options: InitOptions) {
   }
 
   // 6. Write MCP config for Claude Desktop / Cursor / other hosts
-  await writeMcpConfig(root);
+  await writeMcpConfig(root, installationType, mcpProfile);
 
   // 7. Setup additional features
   await setupFeatures(root, features, spinner, logger);
@@ -140,28 +187,37 @@ export async function initCommand(options: InitOptions) {
 
   spinner.succeed(chalk.green("taskyard initialized!"));
 
-  // Show customized next steps
+  // Show customized next steps based on installation type
   const dashboardEnabled = features?.includes("dashboard");
   const autostartEnabled = features?.includes("autostart");
+  const isCentral = installationType === "central";
+
+  // Generate dynamic MCP command based on configuration
+  const validatedInstallationType = installationType ? InstallationTypeSchema.parse(installationType) : undefined;
+  const mcpConfig = await generateMCPConfig(root, validatedInstallationType, mcpProfile);
+  const mcpCommand = JSON.stringify(mcpConfig.mcpServers.taskyard);
 
   console.log(`
-  ${chalk.bold("🚀 Setup complete!")}
+  ${chalk.bold("🚀 Setup complete!")} ${chalk.dim(`(${installationType} installation)`)}
 
   ${chalk.bold("Next steps:")}
-    ${chalk.cyan("npx taskyard start")}${dashboardEnabled ? "" : " --no-dashboard"}   — start MCP server${dashboardEnabled ? " + dashboard" : ""}
+    ${isCentral ? chalk.cyan("npx taskyard start --central") : chalk.cyan("npx taskyard start")}${dashboardEnabled ? "" : " --no-dashboard"}   — start MCP server${dashboardEnabled ? " + dashboard" : ""}
     ${chalk.cyan("npx taskyard start --background")}        — run in background
     ${chalk.cyan("npx taskyard status")}                    — view current board
 
-  ${dashboardEnabled ? chalk.bold("Dashboard will be available at:") + "\n    " + chalk.cyan("http://localhost:3456") + "\n" : ""}
+  ${dashboardEnabled ? chalk.bold("Dashboard will be available at:") + "\n    " + chalk.cyan(isCentral ? "http://localhost:3456" : `http://localhost:${globalConfig.dashboard_port}`) + "\n" : ""}
 
   ${chalk.bold("📋 Task Management:")}
-    Drop files in ${chalk.cyan(".taskyard/tasks/")} directory or use the dashboard
+    ${isCentral ? "Tasks are managed centrally from " + chalk.cyan("~/.taskyard/tasks/") : "Drop files in " + chalk.cyan(".taskyard/tasks/") + " directory"}
+    ${isCentral ? "Project-specific tasks in " + chalk.cyan(".taskyard/tasks/") : "Use dashboard or file system"}
     See ${chalk.cyan("TASK_GUIDE.md")} for detailed instructions
     Example tasks created in ${chalk.cyan(".taskyard/tasks/examples/")}
 
   ${chalk.bold("🤖 For AI agents, add this MCP config:")}
-    ${chalk.cyan("claude mcp add-json taskyard")} '{"type":"stdio","command":"npx","args":["@taskyard/mcp-server","--root","${root}"],"env":{}}'
+    ${chalk.cyan("claude mcp add-json taskyard")} '${mcpCommand}'
     ${chalk.dim("Or manually edit: " + path.join(root, ".taskyard/mcp.json"))}
+
+  ${isCentral ? chalk.bold("📊 Central Management:") + "\n    " + chalk.dim("Project registered in ~/.taskyard/config/projects.json") + "\n    " + chalk.dim(`Using profile: ${mcpProfile}`) + "\n" : ""}
 
   ${autostartEnabled ? chalk.bold("Auto-start configuration:") + "\n    " + chalk.dim("Service files created in .taskyard/") + "\n" : ""}
 
@@ -272,16 +328,13 @@ echo "  Logs:   journalctl --user -u \$SERVICE_NAME -f"
   await fs.writeFile(path.join(serviceDir, "install.sh"), installScript, { mode: 0o755 });
 }
 
-async function writeMcpConfig(root: string) {
-  const mcpConfig = {
-    mcpServers: {
-      taskyard: {
-        command: "npx",
-        args: ["@taskyard/mcp-server", "--root", root],
-        env: {},
-      },
-    },
-  };
+async function writeMcpConfig(
+  root: string,
+  installationType?: string,
+  mcpProfile?: string
+) {
+  const validatedInstallationType = installationType ? InstallationTypeSchema.parse(installationType) : undefined;
+  const mcpConfig = await generateMCPConfig(root, validatedInstallationType, mcpProfile);
   await fs.writeFile(
     path.join(root, ".taskyard/mcp.json"),
     JSON.stringify(mcpConfig, null, 2)

@@ -25,6 +25,7 @@ program
   .option("--port <number>", "dashboard port", "3456")
   .option("--no-dashboard", "start MCP server only")
   .option("--background", "run in background (daemon mode)")
+  .option("--central", "run in central mode (serve all projects from ~/.taskyard)")
   .option("--log-level <level>", "log level (debug, info, warn, error)", "info")
   .action(startCommand);
 
