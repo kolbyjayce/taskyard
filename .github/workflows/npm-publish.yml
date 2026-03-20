@@ -114,8 +114,9 @@ jobs:
       with:
         name: build-artifacts
         path: |
-          packages/*/dist/**/*
-          packages/*/package.json
+          packages/cli/dist/**/*
+          packages/cli/dashboard/**/*
+          packages/cli/package.json
         retention-days: 1
 
   publish-packages:
@@ -168,67 +169,14 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
 
-    - name: Phase 1 - Publish MCP Server
+    - name: Build and publish consolidated CLI package
       run: |
-        cd packages/mcp-server
+        # Build the consolidated package (includes dashboard)
+        npm run build
 
-        PUBLISH_CMD="npm publish --provenance"
-        if [[ "${{ needs.validate.outputs.is_prerelease }}" == "true" ]]; then
-          PUBLISH_CMD="${PUBLISH_CMD} --tag ${{ github.event.inputs.prerelease_tag || 'beta' }}"
-        fi
-
-        echo "🚀 Publishing @taskyard/mcp-server@${{ needs.validate.outputs.version }}"
-        eval $PUBLISH_CMD
-        echo "✅ Published @taskyard/mcp-server@${{ needs.validate.outputs.version }}"
-
-    - name: Verify MCP Server publication
-      run: |
-        echo "⏳ Waiting for npm registry propagation..."
-        RETRY_COUNT=0
-        MAX_RETRIES=12
-        SLEEP_TIME=10
-
-        while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-          if npm view @taskyard/mcp-server@${{ needs.validate.outputs.version }} version >/dev/null 2>&1; then
-            echo "✅ MCP Server version verified on registry"
-            break
-          fi
-
-          echo "⏳ Attempt $((RETRY_COUNT + 1))/$MAX_RETRIES - waiting ${SLEEP_TIME}s..."
-          sleep $SLEEP_TIME
-          RETRY_COUNT=$((RETRY_COUNT + 1))
-        done
-
-        if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-          echo "❌ Failed to verify MCP Server publication after $((MAX_RETRIES * SLEEP_TIME)) seconds"
-          exit 1
-        fi
-
-    - name: Phase 2 - Update CLI dependency and publish
-      run: |
         cd packages/cli
 
-        # Install the exact version we just published
-        echo "🔄 Installing @taskyard/mcp-server@${{ needs.validate.outputs.version }}"
-        npm install @taskyard/mcp-server@${{ needs.validate.outputs.version }} --save --save-exact
-
-        # Verify dependency update
-        INSTALLED_VERSION=$(node -p "require('./package.json').dependencies['@taskyard/mcp-server']")
-        if [[ "$INSTALLED_VERSION" != "${{ needs.validate.outputs.version }}" ]]; then
-          echo "❌ Dependency verification failed"
-          echo "Expected: ${{ needs.validate.outputs.version }}, Got: $INSTALLED_VERSION"
-          exit 1
-        fi
-
-        echo "✅ CLI dependency updated to @taskyard/mcp-server@$INSTALLED_VERSION"
-
-        # Build dashboard first, then CLI (with updated dependency)
-        cd ../dashboard
-        npm run build
-        cd ../cli
-        npm run build
-
-        # Publish CLI
+        # Publish the consolidated CLI package
         PUBLISH_CMD="npm publish --provenance"
         if [[ "${{ needs.validate.outputs.is_prerelease }}" == "true" ]]; then
           PUBLISH_CMD="${PUBLISH_CMD} --tag ${{ github.event.inputs.prerelease_tag || 'beta' }}"
@@ -285,15 +233,16 @@ jobs:
 
         # Format for GitHub Release
         {
-          echo "## 📦 Published Packages"
+          echo "## 📦 Published Package"
           echo ""
           echo "### CLI Package (\`taskyard\`)"
           echo "- **Install:** \`npx taskyard@${{ needs.validate.outputs.version }}\`"
           echo "- **NPM:** [taskyard@${{ needs.validate.outputs.version }}](https://www.npmjs.com/package/taskyard/v/${{ needs.validate.outputs.version }})"
           echo ""
-          echo "### MCP Server Package (\`@taskyard/mcp-server\`)"
-          echo "- **Install:** \`npm install @taskyard/mcp-server@${{ needs.validate.outputs.version }}\`"
-          echo "- **NPM:** [@taskyard/mcp-server@${{ needs.validate.outputs.version }}](https://www.npmjs.com/package/@taskyard/mcp-server/v/${{ needs.validate.outputs.version }})"
+          echo "This consolidated package includes:"
+          echo "- CLI tool for project management"
+          echo "- MCP server functionality"
+          echo "- Integrated dashboard interface"
           echo ""
           echo "## 📝 Changes"
           echo ""
@@ -337,16 +286,12 @@ jobs:
           echo "- ✅ Build artifacts generated" >> $GITHUB_STEP_SUMMARY
           echo "- ✅ Publish readiness verified" >> $GITHUB_STEP_SUMMARY
         else
-          echo "### 📦 Published Packages" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ \`@taskyard/mcp-server@${{ needs.validate.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ \`taskyard@${{ needs.validate.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Published Package" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ \`taskyard@${{ needs.validate.outputs.version }}\` (consolidated package)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🔗 Installation Commands" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "# CLI tool" >> $GITHUB_STEP_SUMMARY
+          echo "# CLI tool with integrated MCP server and dashboard" >> $GITHUB_STEP_SUMMARY
           echo "npx taskyard@${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "# MCP Server" >> $GITHUB_STEP_SUMMARY
-          echo "npm install @taskyard/mcp-server@${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         fi
