@@ -5,6 +5,16 @@
   "description": "MCP server for taskyard — atomic file ops, locking, git, watchdog",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kolbyjayce/taskyard",
+    "directory": "packages/mcp-server"
+  },
+  "homepage": "https://github.com/kolbyjayce/taskyard#readme",
+  "bugs": {
+    "url": "https://github.com/kolbyjayce/taskyard/issues"
+  },
+  "license": "MIT",
   "publishConfig": {
     "access": "public"
   },
