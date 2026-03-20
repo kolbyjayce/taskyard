@@ -20,7 +20,8 @@
     "ai-agents"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-dashboard",
+    "copy-dashboard": "mkdir -p dist/dashboard && cp -r ../dashboard/dist/* dist/dashboard/ 2>/dev/null || echo 'Dashboard files not found, skipping copy'",
     "dev": "tsc --watch",
     "dev:start": "concurrently \"tsc --watch\" \"nodemon --watch dist dist/index.js --root . --http-port 3456\"",
     "start": "node dist/index.js",

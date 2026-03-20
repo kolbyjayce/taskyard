@@ -17,9 +17,9 @@ const SCAFFOLD = {
   "CHANGELOG.md": changelogTemplate,
   "TASK_GUIDE.md": taskGuideTemplate,
   ".taskyard/config.json": configTemplate,
-  "tasks/README.md": tasksReadmeTemplate,
-  "tasks/examples/example-feature.md": exampleTaskTemplate,
-  "tasks/examples/example-bugfix.md": exampleBugfixTemplate,
+  ".taskyard/tasks/README.md": tasksReadmeTemplate,
+  ".taskyard/tasks/examples/example-feature.md": exampleTaskTemplate,
+  ".taskyard/tasks/examples/example-bugfix.md": exampleBugfixTemplate,
   "notes/.gitkeep": "",
   "artifacts/.gitkeep": "",
   "projects/.gitkeep": "",
@@ -139,12 +139,13 @@ export async function initCommand(options: InitOptions) {
   ${dashboardEnabled ? chalk.bold("Dashboard will be available at:") + "\n    " + chalk.cyan("http://localhost:3456") + "\n" : ""}
 
   ${chalk.bold("📋 Task Management:")}
-    Drop files in ${chalk.cyan("tasks/")} directory or use the dashboard
+    Drop files in ${chalk.cyan(".taskyard/tasks/")} directory or use the dashboard
     See ${chalk.cyan("TASK_GUIDE.md")} for detailed instructions
-    Example tasks created in ${chalk.cyan("tasks/examples/")}
+    Example tasks created in ${chalk.cyan(".taskyard/tasks/examples/")}
 
   ${chalk.bold("🤖 For AI agents, add this MCP config:")}
-    ${chalk.dim(path.join(root, ".taskyard/mcp.json"))}
+    ${chalk.cyan("claude mcp add-json taskyard")} '{"type":"stdio","command":"npx","args":["@taskyard/mcp-server","--root","${root}"],"env":{}}'
+    ${chalk.dim("Or manually edit: " + path.join(root, ".taskyard/mcp.json"))}
 
   ${autostartEnabled ? chalk.bold("Auto-start configuration:") + "\n    " + chalk.dim("Service files created in .taskyard/") + "\n" : ""}
 
@@ -352,14 +353,14 @@ function taskGuideTemplate(project: string, features?: string[]) {
 
 ## How to Create Tasks
 
-Taskyard automatically detects and manages tasks placed in the \`tasks/\` directory. There are several ways to create tasks:
+Taskyard automatically detects and manages tasks placed in the \`.taskyard/tasks/\` directory. There are several ways to create tasks:
 
 ### 1. Create Task Files Manually
 
-Drop or create markdown files in the \`tasks/\` directory:
+Drop or create markdown files in the \`.taskyard/tasks/\` directory:
 
 \`\`\`bash
-tasks/
+.taskyard/tasks/
 ├── implement-user-auth.md
 ├── fix-login-bug.md
 └── refactor-api-endpoints.md
@@ -409,7 +410,7 @@ Tasks automatically move through these states:
 Organize tasks using subdirectories:
 
 \`\`\`bash
-tasks/
+.taskyard/tasks/
 ├── features/
 │   ├── user-authentication.md
 │   └── payment-integration.md
@@ -448,7 +449,7 @@ This directory contains all tasks for the ${project} project. Tasks are automati
 ## Structure
 
 \`\`\`
-tasks/
+.taskyard/tasks/
 ├── README.md              (this file)
 ├── examples/              (example tasks - safe to delete)
 │   ├── example-feature.md
@@ -466,7 +467,7 @@ tasks/
 
 ## Task Lifecycle
 
-1. **Created** → File appears in \`tasks/\`
+1. **Created** → File appears in \`.taskyard/tasks/\`
 2. **Claimed** → Agent calls \`claim_task\`
 3. **In Progress** → Agent works and logs progress
 4. **Complete** → Agent calls \`complete_task\`
