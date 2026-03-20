@@ -198,6 +198,14 @@ export async function registerProject(
   const registryPath = path.join(CENTRAL_CONFIG_DIR, "projects.json");
   await ensureCentralConfig();
 
+  // Ensure projects.json exists before attempting to lock it
+  try {
+    await fs.access(registryPath);
+  } catch {
+    // File doesn't exist, create empty registry
+    await fs.writeFile(registryPath, JSON.stringify({ projects: {} }, null, 2));
+  }
+
   // Acquire exclusive lock on registry file
   const release = await lockfile.lock(registryPath, {
     retries: {
@@ -394,6 +402,14 @@ export async function generateMCPConfig(
  */
 export async function updateProjectAccess(projectPath: string): Promise<void> {
   const registryPath = path.join(CENTRAL_CONFIG_DIR, "projects.json");
+
+  // Ensure projects.json exists before attempting to lock it
+  try {
+    await fs.access(registryPath);
+  } catch {
+    // File doesn't exist, create empty registry
+    await fs.writeFile(registryPath, JSON.stringify({ projects: {} }, null, 2));
+  }
 
   // Acquire exclusive lock on registry file
   const release = await lockfile.lock(registryPath, {
