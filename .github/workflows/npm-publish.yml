@@ -58,9 +58,14 @@ jobs:
         npm install -g npm@latest
         echo "Updated npm version: $(npm --version)"
         echo "Node version: $(node --version)"
+        # Clear any problematic npm config
+        npm config delete always-auth 2>/dev/null || true
 
     - name: Install dependencies
-      run: npm install
+      run: |
+        npm install
+        # Ensure all workspace dependencies are installed
+        npm install --workspaces
 
     - name: Determine version
       id: version
@@ -149,6 +154,8 @@ jobs:
         npm install -g npm@latest
         echo "Updated npm version: $(npm --version)"
         echo "Node version: $(node --version)"
+        # Clear any problematic npm config
+        npm config delete always-auth 2>/dev/null || true
 
     - name: Download build artifacts
       uses: actions/download-artifact@v4
@@ -157,8 +164,10 @@ jobs:
         path: .
 
     - name: Install dependencies
-      run: npm install
-
+      run: |
+        npm install
+        # Ensure all workspace dependencies are installed
+        npm install --workspaces
 
     - name: Set package versions
       run: |
@@ -171,10 +180,16 @@ jobs:
 
     - name: Build and publish consolidated CLI package
       run: |
-        # Build the consolidated package (includes dashboard)
+        # Clean and rebuild the consolidated package (includes dashboard)
+        # This ensures proper build context after artifact download
         npm run build
 
         cd packages/cli
+
+        # Verify build artifacts are present
+        echo "📦 Verifying build artifacts:"
+        ls -la dist/ || echo "⚠️ dist/ directory not found"
+        ls -la dashboard/ || echo "⚠️ dashboard/ directory not found"
 
         # Publish the consolidated CLI package
         PUBLISH_CMD="npm publish --provenance"

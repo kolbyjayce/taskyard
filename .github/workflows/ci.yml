@@ -25,7 +25,10 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm ci
+      run: |
+        npm ci
+        # Install workspace dependencies with ci flag for reproducible builds
+        npm ci --workspaces --if-present
 
     - name: Run linting
       run: npm run lint
@@ -54,7 +57,10 @@ jobs:
         cache: 'npm'
 
     - name: Install dependencies
-      run: npm ci
+      run: |
+        npm ci
+        # Install workspace dependencies with ci flag for reproducible builds
+        npm ci --workspaces --if-present
 
     - name: Build consolidated CLI package
       run: npm run build

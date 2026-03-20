@@ -36,7 +36,7 @@
   "main": "./dist/index.js",
   "scripts": {
     "build": "npm run build:dashboard && tsc && npm run copy:dashboard",
-    "build:dashboard": "cd ../dashboard && npm run build",
+    "build:dashboard": "npm run build -w @taskyard/dashboard",
     "copy:dashboard": "rm -rf ./dashboard && cp -r ../dashboard/dist ./dashboard",
     "dev": "tsc --watch",
     "start": "node ./dist/index.js",
