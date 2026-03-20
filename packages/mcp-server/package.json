@@ -1,6 +1,6 @@
 {
   "name": "@taskyard/mcp-server",
-  "version": "1.0.0-alpha.20260320171934-alpha.20260320192033",
+  "version": "1.0.0-alpha.20260320171934-alpha.20260320192033-beta.20260320194149",
   "type": "module",
   "description": "MCP server for taskyard — atomic file ops, locking, git, watchdog",
   "main": "./dist/index.js",
