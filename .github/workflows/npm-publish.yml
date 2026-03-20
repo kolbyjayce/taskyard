@@ -222,7 +222,10 @@ jobs:
 
         echo "✅ CLI dependency updated to @taskyard/mcp-server@$INSTALLED_VERSION"
 
-        # Rebuild with updated dependency
+        # Build dashboard first, then CLI (with updated dependency)
+        cd ../dashboard
+        npm run build
+        cd ../cli
         npm run build
 
         # Publish CLI
