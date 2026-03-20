@@ -46,6 +46,22 @@ export async function startCommand(options: StartOptions) {
   const logLevel = logLevelMap[options.logLevel.toLowerCase()] ?? LogLevel.INFO;
   const logger = createCLILogger("start", root, logLevel);
 
+  // Ensure user directory and dashboard assets are ready before starting any mode
+  const spinner = ora("Preparing environment...").start();
+  await ensureUserDir();
+
+  if (options.dashboard && !(await isDashboardInstalled())) {
+    spinner.text = "Installing dashboard assets...";
+    try {
+      await installDashboardAssets();
+      logger.info("Dashboard assets installed");
+    } catch (error) {
+      spinner.warn(chalk.yellow("Failed to install dashboard assets"));
+      logger.error("Dashboard installation failed", { error: String(error) });
+    }
+  }
+  spinner.succeed("Environment ready");
+
   // Handle background mode
   if (options.background) {
     const daemon = createDaemonManager(root);
@@ -71,24 +87,8 @@ export async function startCommand(options: StartOptions) {
     mode: isCentralMode ? "central" : "local"
   });
 
-  // 1. Ensure user directory and dashboard assets are ready
-  const spinner = ora("Preparing environment...").start();
-  await ensureUserDir();
-
-  if (options.dashboard && !(await isDashboardInstalled())) {
-    spinner.text = "Installing dashboard assets...";
-    try {
-      await installDashboardAssets();
-      logger.info("Dashboard assets installed");
-    } catch (error) {
-      spinner.warn(chalk.yellow("Failed to install dashboard assets"));
-      logger.error("Dashboard installation failed", { error: String(error) });
-    }
-  }
-
-  // 2. Start MCP server (via the installed package)
-  spinner.text = "Starting MCP server...";
-  spinner.start();
+  // Start MCP server (via the installed package)
+  const mcpSpinner = ora("Starting MCP server...").start();
 
   logger.debug("Resolving MCP server path");
   const mcpServerURL = await import.meta.resolve("@taskyard/mcp-server");
@@ -111,11 +111,11 @@ export async function startCommand(options: StartOptions) {
     const line = data.toString().trim();
     if (line.includes("MCP server ready")) {
       mcpReady = true;
-      spinner.text = "MCP server ready, checking HTTP adapter...";
+      mcpSpinner.text = "MCP server ready, checking HTTP adapter...";
       logger.info("MCP server ready");
     } else if (line.includes("HTTP adapter listening")) {
       dashboardReady = true;
-      spinner.succeed(chalk.green("✓ Taskyard services started"));
+      mcpSpinner.succeed(chalk.green("✓ Taskyard services started"));
       console.log(chalk.cyan(`  Dashboard: ${line.split("url: ")[1]}`));
       console.log(chalk.dim("  Press Ctrl+C to stop"));
       logger.info("All services ready", { line });
@@ -138,7 +138,7 @@ export async function startCommand(options: StartOptions) {
   // Setup startup timeout
   const startupTimeout = setTimeout(() => {
     if (!mcpReady || !dashboardReady) {
-      spinner.fail(chalk.red("Startup timeout - services didn't start within 30 seconds"));
+      mcpSpinner.fail(chalk.red("Startup timeout - services didn't start within 30 seconds"));
       logger.error("Startup timeout", { mcpReady, dashboardReady });
       mcp.kill("SIGTERM");
       process.exit(1);

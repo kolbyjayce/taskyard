@@ -170,13 +170,7 @@ export class MultiProjectStore {
   /**
    * Update task in its specific project
    */
-  async updateTask(taskId: string, updates: Partial<Task>): Promise<Task | null> {
-    // Find project path if not provided
-    // Find project path since this method doesn't take projectPath as parameter
-    const taskWithProject = await this.getTask(taskId);
-    if (!taskWithProject) return null;
-    const projectPath = taskWithProject.projectPath;
-
+  async updateTask(projectPath: string, taskId: string, updates: Partial<Task>): Promise<Task | null> {
     const store = await this.getProjectStore(projectPath);
     return store.updateTask("default", taskId, updates);
   }
@@ -243,31 +237,27 @@ export class MultiProjectStore {
   /**
    * Forward other operations to appropriate project store
    */
-  async claimTask(taskId: string, agentId: string): Promise<Task | null> {
-    const taskWithProject = await this.getTask(taskId);
-    if (!taskWithProject) return null;
-    const projectPath = taskWithProject.projectPath;
-
+  async claimTask(projectPath: string, taskId: string, agentId: string): Promise<Task | null> {
     const store = await this.getProjectStore(projectPath);
     return store.claimTask(taskId, agentId);
   }
 
-  async releaseTask(taskId: string, agentId: string): Promise<Task | null> {
-    const taskWithProject = await this.getTask(taskId);
-    if (!taskWithProject) return null;
-    const projectPath = taskWithProject.projectPath;
-
+  async releaseTask(projectPath: string, taskId: string, agentId: string): Promise<Task | null> {
     const store = await this.getProjectStore(projectPath);
     return store.releaseTask(taskId, agentId);
   }
 
-  async appendLog(taskId: string, message: string, agentId: string): Promise<void> {
-    const taskWithProject = await this.getTask(taskId);
-    if (!taskWithProject) throw new Error(`Task ${taskId} not found`);
-    const projectPath = taskWithProject.projectPath;
-
+  async appendLog(projectPath: string, taskId: string, message: string, agentId: string): Promise<void> {
     const store = await this.getProjectStore(projectPath);
     return store.appendLog("default", taskId, agentId, message);
+  }
+
+  /**
+   * Get status counts for a specific project
+   */
+  async getProjectStatusCounts(projectPath: string): Promise<Record<TaskStatusType, number>> {
+    const store = await this.getProjectStore(projectPath);
+    return store.getStatusCounts();
   }
 
 }

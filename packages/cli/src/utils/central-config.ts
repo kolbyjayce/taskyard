@@ -2,6 +2,7 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 import { z } from "zod";
+import lockfile from "proper-lockfile";
 
 export const USER_DIR = path.join(os.homedir(), ".taskyard");
 export const CENTRAL_CONFIG_DIR = path.join(USER_DIR, "config");
@@ -62,27 +63,34 @@ const DEFAULT_GLOBAL_CONFIG: GlobalConfig = {
   log_level: "info",
 };
 
-const DEFAULT_PROFILES: MCPProfile[] = [
-  {
-    name: "local-stdio",
-    type: "stdio",
-    description: "Local installation using stdio communication",
-    config: {
-      command: "npx",
-      args: ["@taskyard/mcp-server", "--root", "{PROJECT_ROOT}"],
-      env: {},
+/**
+ * Creates default profiles with the specified dashboard port
+ */
+function createDefaultProfiles(dashboardPort: number): MCPProfile[] {
+  return [
+    {
+      name: "local-stdio",
+      type: "stdio",
+      description: "Local installation using stdio communication",
+      config: {
+        command: "npx",
+        args: ["@taskyard/mcp-server", "--root", "{PROJECT_ROOT}"],
+        env: {},
+      },
     },
-  },
-  {
-    name: "central-http",
-    type: "http",
-    description: "Central installation using HTTP communication",
-    config: {
-      url: "http://localhost:3456/mcp",
-      port: 3456,
+    {
+      name: "central-http",
+      type: "http",
+      description: "Central installation using HTTP communication",
+      config: {
+        url: `http://localhost:${dashboardPort}/mcp`,
+        port: dashboardPort,
+      },
     },
-  },
-];
+  ];
+}
+
+const DEFAULT_PROFILES: MCPProfile[] = createDefaultProfiles(3456);
 
 /**
  * Ensures the central configuration directory structure exists
@@ -104,12 +112,16 @@ export async function loadGlobalConfig(): Promise<GlobalConfig> {
     const parsed = JSON.parse(raw);
     const merged = { ...DEFAULT_GLOBAL_CONFIG, ...parsed };
     return GlobalConfigSchema.parse(merged);
-  } catch {
-    // Create default config
-    await ensureCentralConfig();
-    const validatedConfig = GlobalConfigSchema.parse(DEFAULT_GLOBAL_CONFIG);
-    await fs.writeFile(configPath, JSON.stringify(validatedConfig, null, 2));
-    return validatedConfig;
+  } catch (error: any) {
+    // Only handle file not found errors - rethrow JSON.parse and validation errors
+    if (error.code === 'ENOENT') {
+      // Create default config
+      await ensureCentralConfig();
+      const validatedConfig = GlobalConfigSchema.parse(DEFAULT_GLOBAL_CONFIG);
+      await fs.writeFile(configPath, JSON.stringify(validatedConfig, null, 2));
+      return validatedConfig;
+    }
+    throw error;
   }
 }
 
@@ -133,9 +145,45 @@ export async function loadProjectRegistry(): Promise<ProjectRegistry> {
     const raw = await fs.readFile(registryPath, "utf-8");
     const parsed = JSON.parse(raw);
     return ProjectRegistrySchema.parse(parsed);
-  } catch {
-    const defaultRegistry = { projects: {} };
-    return ProjectRegistrySchema.parse(defaultRegistry);
+  } catch (error: any) {
+    // Only handle file not found errors - rethrow JSON.parse and validation errors
+    if (error.code === 'ENOENT') {
+      const defaultRegistry = { projects: {} };
+      return ProjectRegistrySchema.parse(defaultRegistry);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Atomically writes registry data using temporary file + rename pattern
+ */
+async function writeRegistryAtomic(
+  registryPath: string,
+  registry: ProjectRegistry
+): Promise<void> {
+  const validatedRegistry = ProjectRegistrySchema.parse(registry);
+  const tempPath = path.join(path.dirname(registryPath), `.${path.basename(registryPath)}.tmp.${Date.now()}`);
+
+  try {
+    // Write to temporary file
+    await fs.writeFile(tempPath, JSON.stringify(validatedRegistry, null, 2));
+
+    // Ensure data is written to disk
+    const fileHandle = await fs.open(tempPath, 'r+');
+    await fileHandle.sync();
+    await fileHandle.close();
+
+    // Atomic rename
+    await fs.rename(tempPath, registryPath);
+  } catch (error) {
+    // Clean up temporary file on error
+    try {
+      await fs.unlink(tempPath);
+    } catch {
+      // Ignore cleanup errors
+    }
+    throw error;
   }
 }
 
@@ -147,22 +195,39 @@ export async function registerProject(
   projectName: string,
   mcpProfile?: string
 ): Promise<void> {
-  const registry = await loadProjectRegistry();
-  const now = new Date().toISOString();
-
-  const projectEntry = ProjectEntrySchema.parse({
-    name: projectName,
-    registered_at: registry.projects[projectPath]?.registered_at || now,
-    last_accessed: now,
-    mcp_profile: mcpProfile,
-  });
-
-  registry.projects[projectPath] = projectEntry;
-
-  const validatedRegistry = ProjectRegistrySchema.parse(registry);
   const registryPath = path.join(CENTRAL_CONFIG_DIR, "projects.json");
   await ensureCentralConfig();
-  await fs.writeFile(registryPath, JSON.stringify(validatedRegistry, null, 2));
+
+  // Acquire exclusive lock on registry file
+  const release = await lockfile.lock(registryPath, {
+    retries: {
+      retries: 5,
+      factor: 2,
+      minTimeout: 100,
+      maxTimeout: 1000
+    }
+  });
+
+  try {
+    // Load current registry state under lock
+    const registry = await loadProjectRegistry();
+    const now = new Date().toISOString();
+
+    const projectEntry = ProjectEntrySchema.parse({
+      name: projectName,
+      registered_at: registry.projects[projectPath]?.registered_at || now,
+      last_accessed: now,
+      mcp_profile: mcpProfile,
+    });
+
+    registry.projects[projectPath] = projectEntry;
+
+    // Atomic write
+    await writeRegistryAtomic(registryPath, registry);
+  } finally {
+    // Always release lock
+    await release();
+  }
 }
 
 /**
@@ -171,29 +236,51 @@ export async function registerProject(
 export async function loadMCPProfiles(): Promise<MCPProfile[]> {
   try {
     const files = await fs.readdir(CENTRAL_PROFILES_DIR);
+    const jsonFiles = files.filter(file => file.endsWith(".json"));
+
+    // Handle empty directory case - bootstrap default profiles
+    if (jsonFiles.length === 0) {
+      const globalConfig = await loadGlobalConfig();
+      const defaultProfiles = createDefaultProfiles(globalConfig.dashboard_port);
+      const validatedProfiles = defaultProfiles.map(profile => MCPProfileSchema.parse(profile));
+      await Promise.all(
+        validatedProfiles.map(profile =>
+          fs.writeFile(
+            path.join(CENTRAL_PROFILES_DIR, `${profile.name}.json`),
+            JSON.stringify(profile, null, 2)
+          )
+        )
+      );
+      return validatedProfiles;
+    }
+
     const profiles = await Promise.all(
-      files
-        .filter(file => file.endsWith(".json"))
-        .map(async file => {
-          const content = await fs.readFile(path.join(CENTRAL_PROFILES_DIR, file), "utf-8");
-          const parsed = JSON.parse(content);
-          return MCPProfileSchema.parse(parsed);
-        })
+      jsonFiles.map(async file => {
+        const content = await fs.readFile(path.join(CENTRAL_PROFILES_DIR, file), "utf-8");
+        const parsed = JSON.parse(content);
+        return MCPProfileSchema.parse(parsed);
+      })
     );
     return profiles;
-  } catch {
-    // Create default profiles
-    await ensureCentralConfig();
-    const validatedProfiles = DEFAULT_PROFILES.map(profile => MCPProfileSchema.parse(profile));
-    await Promise.all(
-      validatedProfiles.map(profile =>
-        fs.writeFile(
-          path.join(CENTRAL_PROFILES_DIR, `${profile.name}.json`),
-          JSON.stringify(profile, null, 2)
+  } catch (error: any) {
+    // Only handle directory not found errors - rethrow JSON.parse and validation errors
+    if (error.code === 'ENOENT') {
+      // Create default profiles
+      await ensureCentralConfig();
+      const globalConfig = await loadGlobalConfig();
+      const defaultProfiles = createDefaultProfiles(globalConfig.dashboard_port);
+      const validatedProfiles = defaultProfiles.map(profile => MCPProfileSchema.parse(profile));
+      await Promise.all(
+        validatedProfiles.map(profile =>
+          fs.writeFile(
+            path.join(CENTRAL_PROFILES_DIR, `${profile.name}.json`),
+            JSON.stringify(profile, null, 2)
+          )
         )
-      )
-    );
-    return validatedProfiles;
+      );
+      return validatedProfiles;
+    }
+    throw error;
   }
 }
 
@@ -264,14 +351,18 @@ export async function generateMCPConfig(
     if (!profile) throw new Error(`Profile ${actualProfileName} not found`);
 
     if (profile.type === "http") {
-      if (!profile.config.url) {
+      // For central-http profile, use configured dashboard port
+      let url = profile.config.url;
+      if (actualProfileName === "central-http") {
+        url = `http://localhost:${globalConfig.dashboard_port}/mcp`;
+      } else if (!url) {
         throw new Error(`HTTP profile ${actualProfileName} missing required URL`);
       }
       const config = {
         mcpServers: {
           taskyard: {
             type: "http" as const,
-            url: profile.config.url,
+            url: url,
           },
         },
       };
@@ -302,10 +393,30 @@ export async function generateMCPConfig(
  * Updates last accessed time for a project
  */
 export async function updateProjectAccess(projectPath: string): Promise<void> {
-  const registry = await loadProjectRegistry();
-  if (registry.projects[projectPath]) {
-    registry.projects[projectPath].last_accessed = new Date().toISOString();
-    const registryPath = path.join(CENTRAL_CONFIG_DIR, "projects.json");
-    await fs.writeFile(registryPath, JSON.stringify(registry, null, 2));
+  const registryPath = path.join(CENTRAL_CONFIG_DIR, "projects.json");
+
+  // Acquire exclusive lock on registry file
+  const release = await lockfile.lock(registryPath, {
+    retries: {
+      retries: 5,
+      factor: 2,
+      minTimeout: 100,
+      maxTimeout: 1000
+    }
+  });
+
+  try {
+    // Load current registry state under lock
+    const registry = await loadProjectRegistry();
+
+    if (registry.projects[projectPath]) {
+      registry.projects[projectPath].last_accessed = new Date().toISOString();
+
+      // Atomic write
+      await writeRegistryAtomic(registryPath, registry);
+    }
+  } finally {
+    // Always release lock
+    await release();
   }
 }

@@ -73,9 +73,30 @@ export function createHttpAdapter(store: FileStore, toolHandlers: Map<string, To
     }
 
     // ── Static dashboard assets ────────────────────────────────────────────
-    let filePath = path.join(dashboardDist, url.pathname === "/" ? "index.html" : url.pathname);
+    // Prevent directory traversal attacks by validating the resolved path
+    const requestedPath = url.pathname === "/" ? "index.html" : url.pathname;
+    let filePath = path.resolve(path.join(dashboardDist, requestedPath));
+
+    // Security check: ensure the resolved path is within dashboardDist
+    if (!filePath.startsWith(path.resolve(dashboardDist) + path.sep) && filePath !== path.resolve(dashboardDist)) {
+      logger.warn("Directory traversal attempt blocked", { requestedPath, resolvedPath: filePath, dashboardDist });
+      res.writeHead(403, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Access denied" }));
+      return;
+    }
+
     const exists = await fs.access(filePath).then(() => true).catch(() => false);
-    if (!exists) filePath = path.join(dashboardDist, "index.html"); // SPA fallback
+    if (!exists) {
+      // SPA fallback - also validate the fallback path
+      const fallbackPath = path.resolve(path.join(dashboardDist, "index.html"));
+      if (!fallbackPath.startsWith(path.resolve(dashboardDist) + path.sep) && fallbackPath !== path.resolve(dashboardDist)) {
+        logger.error("Fallback path traversal detected", { fallbackPath, dashboardDist });
+        res.writeHead(403, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "Access denied" }));
+        return;
+      }
+      filePath = fallbackPath;
+    }
 
     const ext = path.extname(filePath);
     const mime: Record<string, string> = {
