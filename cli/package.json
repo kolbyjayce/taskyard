@@ -1,6 +1,6 @@
 {
   "name": "taskyard",
-  "version": "1.0.0-beta.2-beta.20260320003457-beta.20260320023454",
+  "version": "1.0.0-beta.2-beta.20260320003457-beta.20260320023454-alpha.20260320025558",
   "type": "module",
   "repository": {
     "type": "git",
@@ -17,6 +17,7 @@
   },
   "files": [
     "dist/**/*",
+    "dashboard/**/*",
     "README.md"
   ],
   "description": "Agent-first project management CLI",
@@ -34,12 +35,13 @@
   },
   "main": "./dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && npm run copy-dashboard",
+    "copy-dashboard": "mkdir -p dashboard && cp -r ../dashboard/dist/* dashboard/ 2>/dev/null || echo 'Dashboard files not found, will be installed at runtime'",
     "dev": "tsc --watch",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "@taskyard/mcp-server": "1.0.0-beta.2-beta.20260320003457-beta.20260320023454",
+    "@taskyard/mcp-server": "1.0.0-beta.2-beta.20260320003457-beta.20260320023454-alpha.20260320025558",
     "chalk": "^5.3.0",
     "commander": "^12.0.0",
     "ora": "^8.0.0",
