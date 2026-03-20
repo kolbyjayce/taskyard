@@ -1,6 +1,6 @@
 {
   "name": "@taskyard/dashboard",
-  "version": "1.0.0-alpha.20260320171934",
+  "version": "1.0.0-alpha.20260320171934-alpha.20260320192033",
   "description": "taskyard web dashboard — React + Vite",
   "scripts": {
     "dev": "vite",
