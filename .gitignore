@@ -20,3 +20,6 @@ tests/**/*.js
 
 # taskyard project files
 /.taskyard
+
+# Generated dashboard assets (built during publish)
+packages/cli/dashboard/
