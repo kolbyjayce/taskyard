@@ -1,6 +1,6 @@
 {
   "name": "taskyard",
-  "version": "1.0.0",
+  "version": "1.0.0-alpha.20260320171934",
   "type": "module",
   "description": "Agent-first project management. Markdown files, git, and an MCP server.",
   "private": true,
