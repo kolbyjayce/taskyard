@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { access, rm, mkdir, cp } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
+import { resolve, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -27,6 +27,20 @@ async function copyDashboard() {
         error: error.message,
         code: error.code
       });
+      process.exit(1);
+    }
+
+    // Check if the dashboard entry file exists
+    const entryFile = join(source, 'index.html');
+    try {
+      await access(entryFile);
+    } catch (error) {
+      console.error('Error: Dashboard entry file is missing:', {
+        expectedPath: entryFile,
+        error: error.message,
+        code: error.code
+      });
+      console.error('The dashboard build may not be complete or failed.');
       process.exit(1);
     }
 

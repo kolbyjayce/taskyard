@@ -14,7 +14,7 @@ export interface TaskStore {
   // Agent operations
   claimTask?(projectId: string, taskId: string, agentId: string): Promise<Task | null>;
   releaseTask?(projectId: string, taskId: string, agentId: string): Promise<Task | null>;
-  appendLog?(projectId: string, taskId: string, message: string, agentId: string): Promise<void>;
+  appendLog?(projectId: string, taskId: string, agentId: string, message: string): Promise<void>;
 
   // Status operations
   getStatusCounts?(projectId: string): Promise<Record<TaskStatusType, number>>;
@@ -76,7 +76,7 @@ export class FileStoreAdapter implements TaskStore {
     return this.getTask(projectId, taskId);
   }
 
-  async appendLog(projectId: string, taskId: string, message: string, agentId: string): Promise<void> {
+  async appendLog(projectId: string, taskId: string, agentId: string, message: string): Promise<void> {
     return this.fileStore.appendLog(projectId, taskId, agentId, message);
   }
 
@@ -136,7 +136,7 @@ export class MultiProjectStoreAdapter implements TaskStore {
     return this.multiStore.releaseTask(projectId, taskId, agentId);
   }
 
-  async appendLog(projectId: string, taskId: string, message: string, agentId: string): Promise<void> {
+  async appendLog(projectId: string, taskId: string, agentId: string, message: string): Promise<void> {
     return this.multiStore.appendLog(projectId, taskId, message, agentId);
   }
 
