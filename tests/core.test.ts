@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import fs from "fs/promises";
 import path from "path";
 import os from "os";
-import { FileStore } from "../packages/mcp-server/src/store.js";
-import { isValidTransition } from "../packages/mcp-server/src/schema.js";
+import { FileStore } from "../packages/cli/src/mcp-server/store.js";
+import { isValidTransition } from "../packages/cli/src/mcp-server/schema.js";
 
 // ── Schema tests ─────────────────────────────────────────────────────────────
 
