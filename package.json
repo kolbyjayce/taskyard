@@ -1,29 +1,22 @@
 {
   "name": "taskyard",
-  "version": "1.0.0-alpha.20260320171934-alpha.20260320192033-beta.20260320194149",
+  "version": "0.1.0",
   "type": "module",
-  "description": "Agent-first project management. Markdown files, git, and an MCP server.",
+  "description": "Agent-first todo. Markdown files and an MCP server.",
   "private": true,
   "workspaces": [
-    "packages/cli",
-    "packages/dashboard"
+    "packages/cli"
   ],
   "scripts": {
     "build": "npm run build -w @taskyard/cli",
-    "dev": "npm run dev -w @taskyard/dashboard",
-    "dev:build": "npm run dev -w @taskyard/dashboard",
     "test": "vitest run",
     "lint": "eslint packages/*/src",
-    "typecheck": "tsc --build",
-    "sync-versions": "node scripts/sync-versions.js",
-    "check-publish": "node scripts/check-publish-ready.js",
-    "publish": "./scripts/publish.sh"
+    "typecheck": "tsc --build"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^8.57.1",
     "@typescript-eslint/parser": "^8.57.1",
-    "concurrently": "^8.0.0",
     "eslint": "^9.0.0",
     "typescript": "^5.4.0",
     "vitest": "^1.6.0"

@@ -1,6 +1,6 @@
 {
   "name": "@taskyard/cli",
-  "version": "1.0.0-alpha.20260320171934-alpha.20260320192033-beta.20260320194149",
+  "version": "0.1.0",
   "type": "module",
   "repository": {
     "type": "git",
@@ -17,17 +17,15 @@
   },
   "files": [
     "dist/**/*",
-    "dashboard/**/*",
     "README.md"
   ],
-  "description": "Agent-first project management CLI",
+  "description": "Agent-first todo CLI — MCP server backed by markdown files",
   "keywords": [
     "cli",
     "taskyard",
-    "project-management",
+    "todo",
     "ai-agents",
     "mcp",
-    "git",
     "markdown"
   ],
   "bin": {
@@ -35,28 +33,18 @@
   },
   "main": "./dist/index.js",
   "scripts": {
-    "build": "npm run build:dashboard && tsc && npm run copy:dashboard",
-    "build:dashboard": "npm run build -w @taskyard/dashboard",
-    "copy:dashboard": "rm -rf ./dashboard && cp -r ../dashboard/dist ./dashboard",
+    "build": "tsc",
     "dev": "tsc --watch",
     "start": "node ./dist/index.js",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
-    "chokidar": "^3.6.0",
     "gray-matter": "^4.0.3",
-    "simple-git": "^3.22.0",
     "zod": "^3.22.0",
-    "chalk": "^5.3.0",
-    "commander": "^12.0.0",
-    "ora": "^8.0.0",
-    "prompts": "^2.4.2",
-    "proper-lockfile": "^4.1.2"
+    "commander": "^12.0.0"
   },
   "devDependencies": {
-    "@types/prompts": "^2.4.9",
-    "@types/proper-lockfile": "^4.1.4",
     "typescript": "^5.4.0"
   }
 }
