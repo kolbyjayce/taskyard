@@ -45,7 +45,7 @@ When generating a daily overview (typically via cron):
 
 1. Call `get_status` to get counts
 2. Call `list_tasks` filtered to `in-progress` and `blocked`
-3. Call `list_tasks` with a `due_date` filter for today and tomorrow
+3. Call `list_tasks` with a `due_date` filter to get tasks due before the input date
 4. Summarize in plain language — what needs attention today, what is blocked, what is coming up
 
 Keep briefings concise. Lead with the most urgent item.
