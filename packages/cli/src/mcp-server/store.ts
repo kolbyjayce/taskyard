@@ -34,7 +34,7 @@ export class FileStore {
     // Scan projects/ subdirectory
     const projectsDir = path.join(this.root, "projects");
     const entries = await fs.readdir(projectsDir, { withFileTypes: true }).catch(() => []);
-    for (const entry of entries.filter(e => e.isDirectory())) {
+    for (const entry of entries.filter(e => e.isDirectory() && e.name !== "all")) {
       const tasks = await this.listTasks(entry.name);
       results.push({ name: entry.name, taskCount: tasks.length });
     }
@@ -173,6 +173,7 @@ export class FileStore {
   taskDir(project: string): string {
     const root = path.resolve(this.root);
     const safeProject = this.sanitizeSegment(project, "project");
+    if (safeProject === "all") throw new Error(`"all" is a reserved pseudo-project name`);
 
     const dir = path.resolve(
       root,
