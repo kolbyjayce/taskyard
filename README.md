@@ -11,7 +11,7 @@ See [AGENT_RULES.md](./AGENT_RULES.md) for how agents should interact with the M
 ## Install
 
 ```bash
-npm install -g @taskyard/cli
+npm install -g taskyard
 ```
 
 ## Start the MCP server
@@ -80,8 +80,10 @@ Any notes or detail here.
 |------|-------------|
 | `create_task` | Create a new task with inferred priority, context, and due date |
 | `list_tasks` | List tasks with optional filters (status, priority, context, tag) |
+| `list_projects` | List or filter projects |
 | `read_task` | Read the full body of a task |
 | `update_task` | Update status, priority, due date, or other metadata |
+| `move_task` | Change a task's project/context |
 | `delete_task` | Delete a task |
 | `get_status` | Count tasks by status — useful for daily briefings |
 
