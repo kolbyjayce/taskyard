@@ -1,13 +1,12 @@
 import fs from "fs/promises";
 import path from "path";
 import matter from "gray-matter";
-import { TaskFrontmatter, type Task, type TaskStatusType } from "./schema.js";
+import { TaskFrontmatter, type Task } from "./schema.js";
+
+type ListFilter = Partial<Pick<Task, "status" | "priority" | "context"> & { tag?: string }>;
 
 export class FileStore {
-  constructor(
-    public readonly root: string,
-    public readonly project: string = "default"
-  ) {}
+  constructor(public readonly root: string) {}
 
   // ── Task ID generation ────────────────────────────────────────────────────
 
@@ -21,6 +20,28 @@ export class FileStore {
     return `TASK-${String(next).padStart(3, "0")}`;
   }
 
+  // ── Projects ──────────────────────────────────────────────────────────────
+
+  async listProjects(): Promise<{ name: string; taskCount: number }[]> {
+    const results: { name: string; taskCount: number }[] = [];
+
+    // Always include "default" if it has tasks
+    const defaultTasks = await this.listTasks("default");
+    if (defaultTasks.length > 0) {
+      results.push({ name: "default", taskCount: defaultTasks.length });
+    }
+
+    // Scan projects/ subdirectory
+    const projectsDir = path.join(this.root, "projects");
+    const entries = await fs.readdir(projectsDir, { withFileTypes: true }).catch(() => []);
+    for (const entry of entries.filter(e => e.isDirectory())) {
+      const tasks = await this.listTasks(entry.name);
+      results.push({ name: entry.name, taskCount: tasks.length });
+    }
+
+    return results;
+  }
+
   // ── Reading ───────────────────────────────────────────────────────────────
 
   async readTask(project: string, taskId: string): Promise<Task & { body: string }> {
@@ -29,10 +50,9 @@ export class FileStore {
     return { ...TaskFrontmatter.parse(data), body: content };
   }
 
-  async listTasks(
-    project: string,
-    filter?: Partial<Pick<Task, "status" | "priority" | "context"> & { tag?: string }>
-  ): Promise<Task[]> {
+  async listTasks(project: string, filter?: ListFilter): Promise<Task[]> {
+    if (project === "all") return this.listAllTasks(filter);
+
     const dir = this.taskDir(project);
     const files = await fs.readdir(dir).catch(() => [] as string[]);
     const tasks: Task[] = [];
@@ -53,6 +73,17 @@ export class FileStore {
     return tasks;
   }
 
+  private async listAllTasks(filter?: ListFilter): Promise<Task[]> {
+    const projects = await this.listProjects();
+    // Always query all known projects plus "default" even if empty
+    const names = new Set(["default", ...projects.map(p => p.name)]);
+    const all: Task[] = [];
+    for (const name of names) {
+      all.push(...await this.listTasks(name, filter));
+    }
+    return all;
+  }
+
   // ── Writing ───────────────────────────────────────────────────────────────
 
   async createTask(
@@ -62,12 +93,10 @@ export class FileStore {
     const id = await this.nextTaskId(project);
     const { notes, ...taskFields } = fields;
     const task: Task = TaskFrontmatter.parse({ id, project, status: "backlog", ...taskFields });
-
     const body = notes ? `\n${notes}\n` : `\n_No notes yet._\n`;
-    const content = matter.stringify(body, task as Record<string, unknown>);
     const filePath = this.taskPath(project, id);
     await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, content);
+    await fs.writeFile(filePath, matter.stringify(body, task as Record<string, unknown>));
     return task;
   }
 
@@ -77,6 +106,15 @@ export class FileStore {
     const updated = { ...frontmatter, ...patch };
     await fs.writeFile(this.taskPath(project, taskId), matter.stringify(body, updated as Record<string, unknown>));
     return updated as Task;
+  }
+
+  async moveTask(fromProject: string, taskId: string, toProject: string): Promise<Task> {
+    const existing = await this.readTask(fromProject, taskId);
+    const { body, id: _oldId, project: _oldProject, ...fields } = existing;
+    // Create in destination (gets a new ID in that project's sequence)
+    const moved = await this.createTask(toProject, { ...fields, notes: body.trim() });
+    await this.deleteTask(fromProject, taskId);
+    return moved;
   }
 
   async deleteTask(project: string, taskId: string): Promise<void> {

@@ -4,12 +4,25 @@ import type { FileStore } from "../store.js";
 
 export function registerTaskTools(server: McpServer, store: FileStore) {
 
+  // ── list_projects ───────────────────────────────────────────────────────────
+  server.tool(
+    "list_projects",
+    "List all projects and their task counts.",
+    {},
+    async () => {
+      const projects = await store.listProjects();
+      return {
+        content: [{ type: "text", text: JSON.stringify(projects, null, 2) }],
+      };
+    }
+  );
+
   // ── list_tasks ──────────────────────────────────────────────────────────────
   server.tool(
     "list_tasks",
-    "List tasks, optionally filtered by project, status, priority, context, or tag.",
+    "List tasks filtered by project, status, priority, context, or tag. Pass project=\"all\" to query across all projects.",
     {
-      project: z.string().default("default"),
+      project: z.string().default("default").describe("Project name, or \"all\" to query every project"),
       status: z.enum(["backlog", "in-progress", "done", "blocked"]).optional(),
       priority: z.enum(["low", "medium", "high", "critical"]).optional(),
       context: z.string().optional(),
@@ -85,6 +98,23 @@ export function registerTaskTools(server: McpServer, store: FileStore) {
     }
   );
 
+  // ── move_task ───────────────────────────────────────────────────────────────
+  server.tool(
+    "move_task",
+    "Move a task to a different project. The task gets a new ID in the destination project.",
+    {
+      from_project: z.string().default("default"),
+      task_id: z.string(),
+      to_project: z.string(),
+    },
+    async ({ from_project, task_id, to_project }) => {
+      const moved = await store.moveTask(from_project, task_id, to_project);
+      return {
+        content: [{ type: "text", text: JSON.stringify({ success: true, task: moved }) }],
+      };
+    }
+  );
+
   // ── delete_task ─────────────────────────────────────────────────────────────
   server.tool(
     "delete_task",
@@ -104,9 +134,9 @@ export function registerTaskTools(server: McpServer, store: FileStore) {
   // ── get_status ──────────────────────────────────────────────────────────────
   server.tool(
     "get_status",
-    "Get a count of tasks by status across a project. Useful for daily briefings.",
+    "Get task counts by status. Pass project=\"all\" for a cross-project summary.",
     {
-      project: z.string().default("default"),
+      project: z.string().default("default").describe("Project name, or \"all\" for all projects"),
     },
     async ({ project }) => {
       const tasks = await store.listTasks(project);
