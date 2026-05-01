@@ -19,4 +19,4 @@ program
     await startServer(root);
   });
 
-program.parse();
+program.parseAsync();

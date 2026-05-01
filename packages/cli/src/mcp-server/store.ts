@@ -67,7 +67,7 @@ export class FileStore {
       if (filter?.priority && t.priority !== filter.priority) continue;
       if (filter?.context && t.context !== filter.context) continue;
       if (filter?.tag && !t.tags.includes(filter.tag)) continue;
-      if (filter?.due_date && t.due_date && t.due_date < filter.due_date) continue;
+      if (filter?.due_date && (!t.due_date || t.due_date > filter.due_date)) continue;
       tasks.push(t);
     }
 
@@ -108,26 +108,39 @@ export class FileStore {
         await fs.writeFile(filePath, content, { flag: "wx" });
         return task;
       } catch (e: any) {
-        if (e?.code === "EEXIST") throw e;
+        if (e?.code !== "EEXIST") throw e;
       }
     }
   }
 
-  // TODO: add locking with specs from comment below
   async updateTask(project: string, taskId: string, patch: Partial<Task>): Promise<Task> {
-    // check if lock file exists 
-    // wait for release with exponential backoff retry and eventual timeout
+    const lockPath = this.taskPath(project, taskId) + ".lock";
+    let delay = 50;
+    const deadline = Date.now() + 5000;
 
-
-    // create lock file
-    const existing = await this.readTask(project, taskId);
-    const { body, ...frontmatter } = existing;
-    const updated = { ...frontmatter, ...patch };
-    await fs.writeFile(this.taskPath(project, taskId), matter.stringify(body, updated as Record<string, unknown>));
-
-    // remove lock file
-
-    return updated as Task;
+    for (;;) {
+      try {
+        const fd = await fs.open(lockPath, "wx");
+        try {
+          const existing = await this.readTask(project, taskId);
+          const { body, ...frontmatter } = existing;
+          const updated = { ...frontmatter, ...patch };
+          await fs.writeFile(
+            this.taskPath(project, taskId),
+            matter.stringify(body, updated as Record<string, unknown>)
+          );
+          return updated as Task;
+        } finally {
+          await fd.close();
+          await fs.unlink(lockPath).catch(() => {});
+        }
+      } catch (e: any) {
+        if (e?.code !== "EEXIST") throw e;
+        if (Date.now() >= deadline) throw new Error(`Timed out waiting for lock on ${taskId}`);
+        await new Promise(r => setTimeout(r, delay));
+        delay = Math.min(delay * 2, 500);
+      }
+    }
   }
 
   async moveTask(fromProject: string, taskId: string, toProject: string): Promise<Task> {
@@ -157,7 +170,7 @@ export class FileStore {
 
     const dir = path.resolve(
       root,
-      safeProject === 'default' ? '.taskyard/tasks' : path.join("projects", safeProject, "tasks")
+      safeProject === 'default' ? 'tasks' : path.join("projects", safeProject, "tasks")
     )
 
     if (!dir.startsWith(root + path.sep)) {
