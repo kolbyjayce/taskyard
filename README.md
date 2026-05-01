@@ -17,17 +17,23 @@ npm install -g @taskyard/cli
 ## Start the MCP server
 
 ```bash
-taskyard start --root /path/to/your/tasks
+taskyard start
 ```
 
-Or point your MCP client directly at the binary:
+Task files default to `~/.taskyard/` on all platforms. Override with `--root`:
+
+```bash
+taskyard start --root /path/to/custom/dir
+```
+
+Point your MCP client at the binary — no arguments needed for the default location:
 
 ```json
 {
   "mcpServers": {
     "taskyard": {
       "command": "taskyard",
-      "args": ["start", "--root", "/path/to/your/tasks"]
+      "args": ["start"]
     }
   }
 }
@@ -38,15 +44,14 @@ Or point your MCP client directly at the binary:
 ## File layout
 
 ```
-.taskyard/
+~/.taskyard/
   tasks/
-    TASK-001.md
+    TASK-001.md      ← default project
     TASK-002.md
-    ...
-projects/
-  <project-name>/
-    tasks/
-      TASK-001.md
+  projects/
+    <project-name>/
+      tasks/
+        TASK-001.md  ← named projects
 ```
 
 Each task file is a markdown file with YAML frontmatter:
