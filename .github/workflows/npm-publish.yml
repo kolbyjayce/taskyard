@@ -40,13 +40,13 @@ jobs:
       is_prerelease: ${{ steps.version.outputs.is_prerelease }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
@@ -99,7 +99,7 @@ jobs:
       run: npm run build
 
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: build-artifacts
         path: |
@@ -119,23 +119,22 @@ jobs:
     environment: npm-publishing
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
     - name: Setup Node.js with npm provenance
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
-        registry-url: ${{ env.REGISTRY_URL }}
 
     - name: Install dependencies
       run: npm install
 
     - name: Download build artifacts
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@v6
       with:
         name: build-artifacts
         path: packages/cli
@@ -165,16 +164,12 @@ jobs:
         echo "Publishing taskyard@${{ needs.validate.outputs.version }}"
         eval $PUBLISH_CMD
         echo "Published taskyard@${{ needs.validate.outputs.version }}"
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Commit version changes
       if: ${{ github.event_name == 'workflow_dispatch' }}
       run: |
         git add packages/cli/package.json
-        git commit -m "chore: release v${{ needs.validate.outputs.version }}
-
-        Co-Authored-By: Claude <noreply@anthropic.com>"
+        git commit -m "chore: release v${{ needs.validate.outputs.version }}"
 
         if [[ "${{ needs.validate.outputs.is_prerelease }}" == "false" ]]; then
           git tag "v${{ needs.validate.outputs.version }}"
@@ -197,7 +192,7 @@ jobs:
       contents: write
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
