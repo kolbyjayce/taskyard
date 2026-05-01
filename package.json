@@ -8,7 +8,7 @@
     "packages/cli"
   ],
   "scripts": {
-    "build": "npm run build -w @taskyard/cli",
+    "build": "npm run build -w taskyard",
     "test": "vitest run",
     "lint": "eslint packages/*/src",
     "typecheck": "tsc --build"

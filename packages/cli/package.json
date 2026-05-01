@@ -1,10 +1,10 @@
 {
-  "name": "@taskyard/cli",
-  "version": "0.1.0",
+  "name": "taskyard",
+  "version": "1.0.0-beta.20260501225809",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kolbyjayce/taskyard",
+    "url": "git+https://github.com/kolbyjayce/taskyard.git",
     "directory": "packages/cli"
   },
   "homepage": "https://github.com/kolbyjayce/taskyard#readme",
@@ -29,7 +29,7 @@
     "markdown"
   ],
   "bin": {
-    "taskyard": "./dist/index.js"
+    "taskyard": "dist/index.js"
   },
   "main": "./dist/index.js",
   "scripts": {
@@ -40,9 +40,9 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "commander": "^12.0.0",
     "gray-matter": "^4.0.3",
-    "zod": "^3.22.0",
-    "commander": "^12.0.0"
+    "zod": "^3.22.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0"

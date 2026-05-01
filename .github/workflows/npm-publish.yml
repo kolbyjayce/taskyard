@@ -40,67 +40,57 @@ jobs:
       is_prerelease: ${{ steps.version.outputs.is_prerelease }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
         token: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Setup Node.js
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         registry-url: ${{ env.REGISTRY_URL }}
 
-    - name: Update npm to latest version
-      run: |
-        echo "Current npm version: $(npm --version)"
-        npm install -g npm@latest
-        echo "Updated npm version: $(npm --version)"
-        echo "Node version: $(node --version)"
-        # Clear any problematic npm config
-        npm config delete always-auth 2>/dev/null || true
+    - name: Set npm version
+      run: npm i -g npm@11.13.0
 
     - name: Install dependencies
-      run: |
-        npm install
-        # Ensure all workspace dependencies are installed
-        npm install --workspaces
+      run: npm install
 
     - name: Determine version
       id: version
       run: |
         if [[ "${{ github.event_name }}" == "push" ]]; then
-          # Tag-based release
           VERSION=${GITHUB_REF#refs/tags/v}
           IS_PRERELEASE=false
           if [[ "$VERSION" == *"-"* ]]; then
             IS_PRERELEASE=true
           fi
         else
-          # Manual workflow dispatch
-          CURRENT_VERSION=$(node -p "require('./package.json').version")
-
           if [[ "${{ github.event.inputs.release_type }}" == "prerelease" ]]; then
+            CURRENT_VERSION=$(node -p "require('./packages/cli/package.json').version")
             TIMESTAMP=$(date +%Y%m%d%H%M%S)
             VERSION="${CURRENT_VERSION}-${{ github.event.inputs.prerelease_tag }}.${TIMESTAMP}"
             IS_PRERELEASE=true
           else
-            # For patch/minor/major, we'll use npm version to calculate
+            cd packages/cli
             npm version ${{ github.event.inputs.release_type }} --no-git-tag-version
             VERSION=$(node -p "require('./package.json').version")
+            cd ../..
             IS_PRERELEASE=false
           fi
         fi
 
         echo "version=${VERSION}" >> $GITHUB_OUTPUT
         echo "is_prerelease=${IS_PRERELEASE}" >> $GITHUB_OUTPUT
-        echo "🏷️ Target version: ${VERSION}"
-        echo "🔖 Is prerelease: ${IS_PRERELEASE}"
+        echo "Target version: ${VERSION}"
+        echo "Is prerelease: ${IS_PRERELEASE}"
 
-    - name: Sync package versions
+    - name: Set package version
       run: |
-        node scripts/sync-versions.js ${{ steps.version.outputs.version }}
+        cd packages/cli
+        npm pkg set version=${{ steps.version.outputs.version }}
 
     - name: Run quality checks
       run: |
@@ -108,19 +98,15 @@ jobs:
         npm run typecheck
         npm test
 
-    - name: Build packages
+    - name: Build package
       run: npm run build
 
-    - name: Validate publish readiness
-      run: node scripts/check-publish-ready.js
-
     - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: build-artifacts
         path: |
           packages/cli/dist/**/*
-          packages/cli/dashboard/**/*
           packages/cli/package.json
         retention-days: 1
 
@@ -136,80 +122,61 @@ jobs:
     environment: npm-publishing
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         fetch-depth: 0
 
     - name: Setup Node.js with npm provenance
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v6
       with:
         node-version: ${{ env.NODE_VERSION }}
         cache: 'npm'
         registry-url: ${{ env.REGISTRY_URL }}
 
-    - name: Update npm to latest version
-      run: |
-        echo "Current npm version: $(npm --version)"
-        npm install -g npm@latest
-        echo "Updated npm version: $(npm --version)"
-        echo "Node version: $(node --version)"
-        # Clear any problematic npm config
-        npm config delete always-auth 2>/dev/null || true
-
-    - name: Download build artifacts
-      uses: actions/download-artifact@v4
-      with:
-        name: build-artifacts
-        path: .
+    - name: Set npm version
+      run: npm i -g npm@11.13.0
 
     - name: Install dependencies
-      run: |
-        npm install
-        # Ensure all workspace dependencies are installed
-        npm install --workspaces
+      run: npm install
 
-    - name: Set package versions
+    - name: Download build artifacts
+      uses: actions/download-artifact@v6
+      with:
+        name: build-artifacts
+        path: packages/cli
+
+    - name: Set package version
       run: |
-        node scripts/sync-versions.js ${{ needs.validate.outputs.version }}
+        cd packages/cli
+        npm pkg set version=${{ needs.validate.outputs.version }}
 
     - name: Configure Git
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
 
-    - name: Build and publish consolidated CLI package
+    - name: Publish to NPM
       run: |
-        # Clean and rebuild the consolidated package (includes dashboard)
-        # This ensures proper build context after artifact download
-        npm run build
-
         cd packages/cli
 
-        # Verify build artifacts are present
-        echo "📦 Verifying build artifacts:"
-        ls -la dist/ || echo "⚠️ dist/ directory not found"
-        ls -la dashboard/ || echo "⚠️ dashboard/ directory not found"
+        echo "Build artifacts:"
+        ls -la dist/
 
-        # Publish the consolidated CLI package
         PUBLISH_CMD="npm publish --provenance"
         if [[ "${{ needs.validate.outputs.is_prerelease }}" == "true" ]]; then
           PUBLISH_CMD="${PUBLISH_CMD} --tag ${{ github.event.inputs.prerelease_tag || 'beta' }}"
         fi
 
-        echo "🚀 Publishing taskyard@${{ needs.validate.outputs.version }}"
+        echo "Publishing taskyard@${{ needs.validate.outputs.version }}"
         eval $PUBLISH_CMD
-        echo "✅ Published taskyard@${{ needs.validate.outputs.version }}"
+        echo "Published taskyard@${{ needs.validate.outputs.version }}"
 
     - name: Commit version changes
       if: ${{ github.event_name == 'workflow_dispatch' }}
       run: |
-        git add .
-        git commit -m "chore: release v${{ needs.validate.outputs.version }}
-
-        🤖 Generated with [Claude Code](https://claude.ai/code)
-
-        Co-Authored-By: Claude <noreply@anthropic.com>"
+        git add packages/cli/package.json
+        git commit -m "chore: release v${{ needs.validate.outputs.version }}"
 
         if [[ "${{ needs.validate.outputs.is_prerelease }}" == "false" ]]; then
           git tag "v${{ needs.validate.outputs.version }}"
@@ -232,7 +199,7 @@ jobs:
       contents: write
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
@@ -246,27 +213,21 @@ jobs:
           CHANGELOG="Initial release"
         fi
 
-        # Format for GitHub Release
         {
-          echo "## 📦 Published Package"
+          echo "## Published Package"
           echo ""
-          echo "### CLI Package (\`taskyard\`)"
+          echo "### \`taskyard@${{ needs.validate.outputs.version }}\`"
           echo "- **Install:** \`npx taskyard@${{ needs.validate.outputs.version }}\`"
           echo "- **NPM:** [taskyard@${{ needs.validate.outputs.version }}](https://www.npmjs.com/package/taskyard/v/${{ needs.validate.outputs.version }})"
           echo ""
-          echo "This consolidated package includes:"
-          echo "- CLI tool for project management"
-          echo "- MCP server functionality"
-          echo "- Integrated dashboard interface"
-          echo ""
-          echo "## 📝 Changes"
+          echo "## Changes"
           echo ""
           echo "\`\`\`"
           echo "$CHANGELOG"
           echo "\`\`\`"
           echo ""
           echo "---"
-          echo "*Published with provenance using GitHub's trusted publishing 🔒*"
+          echo "*Published with provenance using GitHub's trusted publishing*"
         } > changelog.md
 
     - name: Create GitHub Release
@@ -288,25 +249,22 @@ jobs:
     steps:
     - name: Success summary
       run: |
-        echo "## 🎉 NPM Publishing Completed Successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "## NPM Publishing Completed!" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "**Version:** \`${{ needs.validate.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
         echo "**Prerelease:** ${{ needs.validate.outputs.is_prerelease }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
 
         if [[ "${{ inputs.dry_run }}" == "true" ]]; then
-          echo "### 🔍 Dry Run Results" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Version validation passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Quality checks passed" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Build artifacts generated" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Publish readiness verified" >> $GITHUB_STEP_SUMMARY
+          echo "### Dry Run Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Quality checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "- Build artifacts generated" >> $GITHUB_STEP_SUMMARY
         else
-          echo "### 📦 Published Package" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ \`taskyard@${{ needs.validate.outputs.version }}\` (consolidated package)" >> $GITHUB_STEP_SUMMARY
+          echo "### Published Package" >> $GITHUB_STEP_SUMMARY
+          echo "- \`taskyard@${{ needs.validate.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🔗 Installation Commands" >> $GITHUB_STEP_SUMMARY
+          echo "### Installation" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-          echo "# CLI tool with integrated MCP server and dashboard" >> $GITHUB_STEP_SUMMARY
           echo "npx taskyard@${{ needs.validate.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         fi
