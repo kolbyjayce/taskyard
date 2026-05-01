@@ -100,7 +100,7 @@ export class FileStore {
     // retry until we get a unique ID incase of concurrent task writes
     for (; ;) {
       const id = await this.nextTaskId(project);
-      const task: Task = TaskFrontmatter.parse({ id, project, status: "backlog", ...taskFields });
+      const task: Task = TaskFrontmatter.parse({ ...taskFields, id, project, status: "backlog" });
       const content = matter.stringify(body, task as Record<string, unknown>);
       const filePath = this.taskPath(project, id);
 
@@ -124,7 +124,7 @@ export class FileStore {
         try {
           const existing = await this.readTask(project, taskId);
           const { body, ...frontmatter } = existing;
-          const updated = { ...frontmatter, ...patch };
+          const updated = { ...frontmatter, ...patch, id: existing.id, project: existing.project };
           await fs.writeFile(
             this.taskPath(project, taskId),
             matter.stringify(body, updated as Record<string, unknown>)
@@ -148,7 +148,13 @@ export class FileStore {
     const { body, id: _oldId, project: _oldProject, ...fields } = existing;
     // Create in destination (gets a new ID in that project's sequence)
     const moved = await this.createTask(toProject, { ...fields, notes: body.trim() });
-    await this.deleteTask(fromProject, taskId);
+    try {
+      await this.deleteTask(fromProject, taskId);
+    } catch (e) {
+      // Rollback: remove the newly created destination task so we don't leave a duplicate
+      await this.deleteTask(toProject, moved.id).catch(() => { });
+      throw e;
+    }
     return moved;
   }
 
