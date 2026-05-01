@@ -1,5 +1,5 @@
 {
-  "name": "@taskyard/cli",
+  "name": "taskyard",
   "version": "0.1.0",
   "type": "module",
   "repository": {
