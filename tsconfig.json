@@ -1,7 +1,6 @@
 {
   "references": [
-    { "path": "./packages/cli" },
-    { "path": "./packages/dashboard" }
+    { "path": "./packages/cli" }
   ],
   "files": []
 }
