@@ -43,7 +43,7 @@ Point your MCP client at the binary — no arguments needed for the default loca
 
 ## File layout
 
-```
+```text
 ~/.taskyard/
   tasks/
     TASK-001.md      ← default project
