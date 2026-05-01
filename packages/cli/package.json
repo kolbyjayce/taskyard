@@ -4,7 +4,7 @@
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "https://github.com/kolbyjayce/taskyard",
+    "url": "git+https://github.com/kolbyjayce/taskyard.git",
     "directory": "packages/cli"
   },
   "homepage": "https://github.com/kolbyjayce/taskyard#readme",
@@ -29,7 +29,7 @@
     "markdown"
   ],
   "bin": {
-    "taskyard": "./dist/index.js"
+    "taskyard": "dist/index.js"
   },
   "main": "./dist/index.js",
   "scripts": {
