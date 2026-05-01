@@ -86,7 +86,7 @@ export class FileStore {
   // ── Path helpers ──────────────────────────────────────────────────────────
 
   taskDir(project: string): string {
-    return path.join(this.root, project === "default" ? ".taskyard/tasks" : `projects/${project}/tasks`);
+    return path.join(this.root, project === "default" ? "tasks" : `projects/${project}/tasks`);
   }
 
   taskPath(project: string, taskId: string): string {

@@ -1,6 +1,10 @@
 #!/usr/bin/env node
+import os from "os";
+import path from "path";
 import { program } from "commander";
 import { startServer } from "./mcp-server/index.js";
+
+const DEFAULT_ROOT = path.join(os.homedir(), ".taskyard");
 
 program
   .name("taskyard")
@@ -10,7 +14,7 @@ program
 program
   .command("start", { isDefault: true })
   .description("Start the MCP server (stdio transport)")
-  .option("--root <path>", "root directory for task files", process.cwd())
+  .option("--root <path>", "root directory for task files", DEFAULT_ROOT)
   .action(async ({ root }) => {
     await startServer(root);
   });

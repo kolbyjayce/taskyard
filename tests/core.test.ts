@@ -10,6 +10,8 @@ describe("FileStore", () => {
 
   beforeEach(async () => {
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "taskyard-test-"));
+    // Scaffold both default and named project directories
+    await fs.mkdir(path.join(tmpDir, "tasks"), { recursive: true });
     await fs.mkdir(path.join(tmpDir, "projects/test-project/tasks"), { recursive: true });
     store = new FileStore(tmpDir);
   });
