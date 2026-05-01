@@ -3,10 +3,10 @@ import path from "path";
 import matter from "gray-matter";
 import { TaskFrontmatter, type Task } from "./schema.js";
 
-type ListFilter = Partial<Pick<Task, "status" | "priority" | "context"> & { tag?: string }>;
+type ListFilter = Partial<Pick<Task, "status" | "priority" | "context" | "due_date"> & { tag?: string }>;
 
 export class FileStore {
-  constructor(public readonly root: string) {}
+  constructor(public readonly root: string) { }
 
   // ── Task ID generation ────────────────────────────────────────────────────
 
@@ -67,6 +67,7 @@ export class FileStore {
       if (filter?.priority && t.priority !== filter.priority) continue;
       if (filter?.context && t.context !== filter.context) continue;
       if (filter?.tag && !t.tags.includes(filter.tag)) continue;
+      if (filter?.due_date && t.due_date && t.due_date < filter.due_date) continue;
       tasks.push(t);
     }
 
@@ -90,21 +91,42 @@ export class FileStore {
     project: string,
     fields: Partial<Task> & { title: string; notes?: string }
   ): Promise<Task> {
-    const id = await this.nextTaskId(project);
     const { notes, ...taskFields } = fields;
-    const task: Task = TaskFrontmatter.parse({ id, project, status: "backlog", ...taskFields });
+
     const body = notes ? `\n${notes}\n` : `\n_No notes yet._\n`;
-    const filePath = this.taskPath(project, id);
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
-    await fs.writeFile(filePath, matter.stringify(body, task as Record<string, unknown>));
-    return task;
+
+    await fs.mkdir(this.taskDir(project), { recursive: true });
+
+    // retry until we get a unique ID incase of concurrent task writes
+    for (; ;) {
+      const id = await this.nextTaskId(project);
+      const task: Task = TaskFrontmatter.parse({ id, project, status: "backlog", ...taskFields });
+      const content = matter.stringify(body, task as Record<string, unknown>);
+      const filePath = this.taskPath(project, id);
+
+      try {
+        await fs.writeFile(filePath, content, { flag: "wx" });
+        return task;
+      } catch (e: any) {
+        if (e?.code === "EEXIST") throw e;
+      }
+    }
   }
 
+  // TODO: add locking with specs from comment below
   async updateTask(project: string, taskId: string, patch: Partial<Task>): Promise<Task> {
+    // check if lock file exists 
+    // wait for release with exponential backoff retry and eventual timeout
+
+
+    // create lock file
     const existing = await this.readTask(project, taskId);
     const { body, ...frontmatter } = existing;
     const updated = { ...frontmatter, ...patch };
     await fs.writeFile(this.taskPath(project, taskId), matter.stringify(body, updated as Record<string, unknown>));
+
+    // remove lock file
+
     return updated as Task;
   }
 
@@ -122,12 +144,32 @@ export class FileStore {
   }
 
   // ── Path helpers ──────────────────────────────────────────────────────────
+  private sanitizeSegment(value: string, name: string): string {
+    if (!/^[A-Za-z0-9_-]+$/.test(value)) {
+      throw new Error(`Invalid ${name}: ${value}`);
+    }
+    return value;
+  }
 
   taskDir(project: string): string {
-    return path.join(this.root, project === "default" ? "tasks" : `projects/${project}/tasks`);
+    const root = path.resolve(this.root);
+    const safeProject = this.sanitizeSegment(project, "project");
+
+    const dir = path.resolve(
+      root,
+      safeProject === 'default' ? '.taskyard/tasks' : path.join("projects", safeProject, "tasks")
+    )
+
+    if (!dir.startsWith(root + path.sep)) {
+      throw new Error(`Project path ${dir} is not inside root ${root}`);
+    }
+
+    return dir;
   }
 
   taskPath(project: string, taskId: string): string {
+    this.sanitizeSegment(taskId, "task_id");
+
     return path.join(this.taskDir(project), `${taskId}.md`);
   }
 }
