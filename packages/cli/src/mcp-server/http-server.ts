@@ -1,4 +1,5 @@
 import { createServer, IncomingMessage, ServerResponse } from "node:http";
+import type { AddressInfo } from "node:net";
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
@@ -13,7 +14,14 @@ export interface HttpServerOptions {
   root: string;
 }
 
-export async function startHttpServer(opts: HttpServerOptions): Promise<void> {
+export interface HttpServerHandle {
+  port: number;
+  close: () => Promise<void>;
+}
+
+export async function startHttpServer(
+  opts: HttpServerOptions
+): Promise<HttpServerHandle> {
   const store = new FileStore(opts.root);
   const transports = new Map<string, StreamableHTTPServerTransport>();
 
@@ -57,22 +65,26 @@ export async function startHttpServer(opts: HttpServerOptions): Promise<void> {
     }
   });
 
-  await new Promise<void>((resolve, reject) => {
-    httpServer.listen(opts.port, "0.0.0.0", resolve);
+  const port = await new Promise<number>((resolve, reject) => {
+    httpServer.listen(opts.port, "0.0.0.0", () => {
+      resolve((httpServer.address() as AddressInfo).port);
+    });
     httpServer.once("error", reject);
   });
 
-  console.error(`taskyard HTTP server listening on port ${opts.port}`);
+  console.error(`taskyard HTTP server listening on port ${port}`);
 
-  for (const sig of ["SIGINT", "SIGTERM"] as const) {
-    process.on(sig, async () => {
+  const close = (): Promise<void> => {
+    return new Promise((resolve, reject) => {
       for (const [sid, t] of transports) {
-        await t.close().catch(() => {});
+        t.close().catch(() => {});
         transports.delete(sid);
       }
-      httpServer.close(() => process.exit(0));
+      httpServer.close((err) => (err ? reject(err) : resolve()));
     });
-  }
+  };
+
+  return { port, close };
 }
 
 async function handleMcp(
@@ -136,7 +148,7 @@ async function handleMcp(
     registerTaskTools(mcpServer, store);
     await mcpServer.connect(transport);
 
-    // Pass pre-parsed body so the transport doesn't try to re-read the consumed stream.
+    // Pass pre-parsed body so the transport doesn't re-read the consumed stream.
     await transport.handleRequest(req, res, parsed);
     return;
   }
