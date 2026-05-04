@@ -12,7 +12,10 @@ export interface ServerOptions {
 
 export async function startServer(options: ServerOptions): Promise<void> {
   if (options.transport === "http") {
-    await startHttpServer({ port: options.port, root: options.root });
+    const { close } = await startHttpServer({ port: options.port, root: options.root });
+    for (const sig of ["SIGINT", "SIGTERM"] as const) {
+      process.on(sig, () => close().finally(() => process.exit(0)));
+    }
     return;
   }
 
