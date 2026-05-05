@@ -18,8 +18,5 @@ tests/**/*.js
 !vitest.config.ts
 !scripts/*.js
 
-# taskyard project files
-/.taskyard
-
-# Generated dashboard assets (built during publish)
-packages/cli/dashboard/
+# astro build output
+.astro/

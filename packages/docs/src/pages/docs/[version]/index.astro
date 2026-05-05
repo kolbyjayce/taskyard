@@ -1,0 +1,28 @@
+---
+import { getVersions, getDocsForVersion } from '@/lib/docs';
+
+export async function getStaticPaths() {
+  const versions = await getVersions();
+  const paths = await Promise.all(
+    versions.map(async (version) => {
+      const docs = await getDocsForVersion(version);
+      const firstDoc = docs[0];
+      return {
+        params: { version },
+        props: { firstDoc },
+      };
+    })
+  );
+  return paths;
+}
+
+const { version } = Astro.params;
+const { firstDoc } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+if (firstDoc) {
+  const [, ...rest] = firstDoc.slug.split('/');
+  const pageSlug = rest.join('/');
+  return Astro.redirect(`${base}/docs/${version}/${pageSlug}`);
+}
+---

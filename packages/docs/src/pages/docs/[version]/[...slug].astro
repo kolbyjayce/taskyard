@@ -1,0 +1,36 @@
+---
+import { getCollection } from 'astro:content';
+import { getVersions, getNavForVersion } from '@/lib/docs';
+import DocsLayout from '../../../layouts/DocsLayout.astro';
+
+export async function getStaticPaths() {
+  const entries = await getCollection('docs');
+
+  return entries.map((entry) => {
+    const [version, ...rest] = entry.slug.split('/');
+    const slug = rest.join('/');
+    return {
+      params: { version, slug },
+      props: { entry, version, slug },
+    };
+  });
+}
+
+const { entry, version, slug } = Astro.props;
+const { Content } = await entry.render();
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const versions = await getVersions();
+const navItems = await getNavForVersion(version, base);
+---
+
+<DocsLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  versions={versions}
+  currentVersion={version}
+  currentSlug={slug}
+  navItems={navItems}
+>
+  <Content />
+</DocsLayout>

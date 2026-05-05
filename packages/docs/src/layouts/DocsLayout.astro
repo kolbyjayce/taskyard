@@ -1,0 +1,235 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Header from '../components/Header.astro';
+import DocsSidebar from '../components/DocsSidebar.astro';
+import type { DocNavItem } from '@/lib/docs';
+
+interface Props {
+  title: string;
+  description?: string;
+  versions: string[];
+  currentVersion: string;
+  currentSlug: string;
+  navItems: DocNavItem[];
+}
+
+const {
+  title,
+  description,
+  versions,
+  currentVersion,
+  currentSlug,
+  navItems,
+} = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="flex min-h-screen flex-col">
+    <Header currentPath={Astro.url.pathname} />
+
+    <div class="mx-auto flex w-full max-w-7xl flex-1 gap-0 px-0 sm:px-4 lg:px-6">
+
+      <!-- Mobile sidebar backdrop -->
+      <div
+        id="sidebar-backdrop"
+        class="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-300 lg:hidden"
+        aria-hidden="true"
+      ></div>
+
+      <!-- Sidebar container — off-canvas on mobile, in-flow on desktop -->
+      <div
+        id="sidebar-container"
+        class="fixed top-14 bottom-0 left-0 z-50 w-72 -translate-x-full overflow-y-auto border-r border-border bg-background transition-transform duration-300 ease-in-out
+               lg:relative lg:top-auto lg:bottom-auto lg:left-auto lg:z-auto lg:w-64 lg:translate-x-0 lg:overflow-visible lg:border-r-0 lg:bg-transparent lg:flex lg:shrink-0"
+      >
+        <!-- Mobile drawer header with close button -->
+        <div class="flex items-center justify-between border-b border-border px-4 py-3 lg:hidden">
+          <span class="font-mono text-xs font-semibold uppercase tracking-widest text-muted-foreground/60">
+            Navigation
+          </span>
+          <button
+            id="close-sidebar"
+            class="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Close navigation"
+          >
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+              <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <DocsSidebar
+          versions={versions}
+          currentVersion={currentVersion}
+          currentSlug={currentSlug}
+          navItems={navItems}
+        />
+      </div>
+
+      <!-- Vertical divider (desktop only) -->
+      <div class="hidden lg:block w-px shrink-0 bg-border/60 self-stretch"></div>
+
+      <!-- Main content -->
+      <main class="min-w-0 flex-1 px-4 py-8 sm:px-6 lg:pl-8">
+
+        <!-- Mobile nav toggle button -->
+        <button
+          id="open-sidebar"
+          class="mb-5 flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm font-sans text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground lg:hidden"
+          aria-label="Open navigation"
+          aria-expanded="false"
+          aria-controls="sidebar-container"
+        >
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 12h18M3 6h18M3 18h12" stroke-linecap="round"/>
+          </svg>
+          <span>Navigation</span>
+          <span class="ml-auto text-xs font-mono text-border">{currentVersion}</span>
+        </button>
+
+        <!-- Breadcrumb -->
+        <nav class="mb-6 flex items-center gap-1.5 text-xs font-mono text-muted-foreground" aria-label="Breadcrumb">
+          <a href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/docs/`} class="hover:text-foreground transition-colors">docs</a>
+          <span class="text-border">/</span>
+          <span class="text-primary/80">{currentVersion}</span>
+          <span class="text-border">/</span>
+          <span class="text-foreground">{currentSlug}</span>
+        </nav>
+
+        <!-- Doc content with prose styles -->
+        <article
+          class="prose prose-invert max-w-none
+            prose-headings:font-display prose-headings:font-bold prose-headings:tracking-tight
+            prose-h1:text-3xl prose-h1:text-foreground
+            prose-h2:text-xl prose-h2:text-foreground prose-h2:mt-10 prose-h2:border-t prose-h2:border-border prose-h2:pt-8
+            prose-h3:text-base prose-h3:text-foreground/90
+            prose-p:text-foreground/80 prose-p:leading-relaxed
+            prose-a:text-primary prose-a:no-underline hover:prose-a:underline
+            prose-strong:text-foreground prose-strong:font-semibold
+            prose-code:text-primary prose-code:bg-card prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono prose-code:before:content-none prose-code:after:content-none
+            prose-pre:bg-card prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:text-sm prose-pre:overflow-x-auto
+            prose-blockquote:border-primary/50 prose-blockquote:text-muted-foreground
+            prose-hr:border-border
+            prose-li:text-foreground/80
+            prose-ul:marker:text-muted-foreground/50
+            prose-ol:marker:text-muted-foreground/50
+          "
+        >
+          <slot />
+        </article>
+
+        <!-- Page footer nav -->
+        <div class="mt-12 border-t border-border pt-6">
+          <div class="flex items-center justify-between text-sm font-sans">
+            <div></div>
+            <a
+              href={`${import.meta.env.BASE_URL.replace(/\/$/, '')}/docs/${currentVersion}/`}
+              class="flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Back to {currentVersion} overview
+            </a>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    // ── Code block copy buttons ──────────────────────────────────────
+    // Touch devices can't hover, so the button must always be visible on them.
+    const isTouch = window.matchMedia('(hover: none)').matches;
+
+    const copyIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+    const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+    document.querySelectorAll('article pre').forEach((pre) => {
+      const code = pre.querySelector('code');
+      if (!code) return;
+
+      pre.style.position = 'relative';
+
+      const btn = document.createElement('button');
+      btn.className = [
+        'copy-code-btn',
+        'absolute', 'top-2.5', 'right-2.5',
+        'flex', 'items-center', 'justify-center',
+        'rounded',
+        'bg-muted/80', 'text-muted-foreground',
+        'transition-all', 'duration-200',
+        'hover:bg-primary/15', 'hover:text-primary',
+        'focus-visible:outline-none', 'focus-visible:ring-1', 'focus-visible:ring-ring',
+        // Touch: larger tap target, always visible
+        isTouch ? 'h-8 w-8 opacity-100' : 'h-7 w-7 opacity-0',
+      ].join(' ');
+      btn.setAttribute('aria-label', 'Copy code');
+      btn.setAttribute('title', 'Copy');
+      btn.innerHTML = copyIcon;
+
+      btn.addEventListener('click', async () => {
+        const text = code.textContent ?? '';
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch {
+          const el = document.createElement('textarea');
+          el.value = text;
+          document.body.appendChild(el);
+          el.select();
+          document.execCommand('copy');
+          document.body.removeChild(el);
+        }
+        btn.innerHTML = checkIcon;
+        btn.classList.remove('text-muted-foreground');
+        btn.classList.add('text-green-400', 'opacity-100');
+        setTimeout(() => {
+          btn.innerHTML = copyIcon;
+          btn.classList.add('text-muted-foreground');
+          btn.classList.remove('text-green-400');
+          // Restore original visibility state
+          if (!isTouch) btn.classList.remove('opacity-100');
+        }, 2000);
+      });
+
+      if (!isTouch) {
+        pre.addEventListener('mouseenter', () => btn.classList.add('opacity-100'));
+        pre.addEventListener('mouseleave', () => {
+          if (!btn.classList.contains('text-green-400')) btn.classList.remove('opacity-100');
+        });
+      }
+
+      pre.appendChild(btn);
+    });
+
+    // ── Sidebar toggle ───────────────────────────────────────────────
+    const openBtn = document.getElementById('open-sidebar');
+    const closeBtn = document.getElementById('close-sidebar');
+    const sidebar = document.getElementById('sidebar-container');
+    const backdrop = document.getElementById('sidebar-backdrop');
+
+    function openSidebar() {
+      sidebar?.classList.remove('-translate-x-full');
+      sidebar?.classList.add('translate-x-0');
+      backdrop?.classList.remove('opacity-0', 'pointer-events-none');
+      backdrop?.classList.add('opacity-100');
+      document.body.style.overflow = 'hidden';
+      openBtn?.setAttribute('aria-expanded', 'true');
+    }
+
+    function closeSidebar() {
+      sidebar?.classList.add('-translate-x-full');
+      sidebar?.classList.remove('translate-x-0');
+      backdrop?.classList.add('opacity-0', 'pointer-events-none');
+      backdrop?.classList.remove('opacity-100');
+      document.body.style.overflow = '';
+      openBtn?.setAttribute('aria-expanded', 'false');
+    }
+
+    openBtn?.addEventListener('click', openSidebar);
+    closeBtn?.addEventListener('click', closeSidebar);
+    backdrop?.addEventListener('click', closeSidebar);
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeSidebar();
+    });
+  </script>
+</BaseLayout>
