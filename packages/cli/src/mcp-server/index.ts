@@ -1,5 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { fileURLToPath } from "url";
 import { registerTaskTools } from "./tools/tasks.js";
 import { FileStore } from "./store.js";
 
@@ -13,8 +14,10 @@ export async function startServer(root: string) {
   await server.connect(transport);
 }
 
-const args = process.argv.slice(2);
-const rootIdx = args.indexOf("--root");
-const root = rootIdx !== -1 ? args[rootIdx + 1] : process.cwd();
-
-startServer(root).catch(console.error);
+// Only run when executed directly, not when imported by the CLI
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const args = process.argv.slice(2);
+  const rootIdx = args.indexOf("--root");
+  const root = rootIdx !== -1 ? args[rootIdx + 1] : process.cwd();
+  startServer(root).catch(console.error);
+}
