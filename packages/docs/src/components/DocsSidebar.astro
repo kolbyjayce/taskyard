@@ -1,0 +1,66 @@
+---
+import { VersionSwitcher } from './VersionSwitcher';
+import type { DocNavItem } from '@/lib/docs';
+
+interface Props {
+  versions: string[];
+  currentVersion: string;
+  currentSlug: string;
+  navItems: DocNavItem[];
+}
+
+const { versions, currentVersion, currentSlug, navItems } = Astro.props;
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const currentPath = Astro.url.pathname;
+---
+
+<aside class="docs-sidebar flex w-full shrink-0 flex-col gap-6 py-6 pr-4 pl-4 lg:pl-0">
+  <!-- Version switcher -->
+  <div class="space-y-1.5">
+    <p class="px-1 text-[10px] font-mono font-semibold uppercase tracking-widest text-muted-foreground/60">
+      Version
+    </p>
+    <VersionSwitcher
+      client:load
+      versions={versions}
+      currentVersion={currentVersion}
+      currentSlug={currentSlug}
+      base={base}
+    />
+  </div>
+
+  <!-- Navigation -->
+  <nav class="space-y-6">
+    <div class="space-y-1">
+      <p class="px-1 text-[10px] font-mono font-semibold uppercase tracking-widest text-muted-foreground/60">
+        Getting Started
+      </p>
+      <ul class="space-y-0.5" role="list">
+        {navItems.map((item) => {
+          const isActive = currentPath === item.href || currentPath === item.href + '/';
+          return (
+            <li>
+              <a
+                href={item.href}
+                class:list={[
+                  'group flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm font-sans transition-all duration-150',
+                  isActive
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'text-muted-foreground hover:bg-muted hover:text-foreground',
+                ]}
+              >
+                {isActive && (
+                  <span class="h-1 w-1 shrink-0 rounded-full bg-primary" aria-hidden="true" />
+                )}
+                {!isActive && (
+                  <span class="h-1 w-1 shrink-0 rounded-full opacity-0 group-hover:opacity-30" aria-hidden="true" />
+                )}
+                {item.title}
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  </nav>
+</aside>

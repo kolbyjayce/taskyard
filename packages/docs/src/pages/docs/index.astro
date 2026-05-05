@@ -1,0 +1,15 @@
+---
+import { getLatestVersion, getDocsForVersion } from '@/lib/docs';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const latestVersion = await getLatestVersion();
+const docs = await getDocsForVersion(latestVersion);
+
+// Redirect to first doc in the latest version
+const firstDoc = docs[0];
+if (firstDoc) {
+  const [, ...rest] = firstDoc.slug.split('/');
+  const pageSlug = rest.join('/');
+  return Astro.redirect(`${base}/docs/${latestVersion}/${pageSlug}`);
+}
+---
