@@ -5,7 +5,8 @@
   "description": "Agent-first todo. Markdown files and an MCP server.",
   "private": true,
   "workspaces": [
-    "packages/cli"
+    "packages/cli",
+    "packages/docs"
   ],
   "scripts": {
     "build": "npm run build -w taskyard",
