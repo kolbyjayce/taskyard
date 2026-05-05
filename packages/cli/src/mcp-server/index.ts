@@ -18,6 +18,7 @@ export async function startServer(root: string) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
   const rootIdx = args.indexOf("--root");
-  const root = rootIdx !== -1 ? args[rootIdx + 1] : process.cwd();
+  const rootArg = rootIdx !== -1 ? args[rootIdx + 1] : undefined;
+  const root = rootArg && !rootArg.startsWith("-") ? rootArg : process.cwd();
   startServer(root).catch(console.error);
 }
