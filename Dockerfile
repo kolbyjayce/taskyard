@@ -41,7 +41,9 @@ USER taskyard
 
 # TASKYARD_AUTH_TOKEN — set to a secret string to enable bearer-token auth.
 # Leave unset for open/unauthenticated mode (e.g. local or trusted-network use).
-ENV TASKYARD_AUTH_TOKEN=""
+# Supply at runtime via `docker run -e TASKYARD_AUTH_TOKEN=...` or CI environment.
+# Leaving it unset yields the same behavior as an empty string (see auth logic in
+# packages/cli/src/mcp-server/auth.ts where `if (!expected) return true`).
 
 EXPOSE 3000
 
