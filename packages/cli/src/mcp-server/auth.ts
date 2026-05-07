@@ -26,9 +26,7 @@ export async function checkBearerAuth(
   const providedBuf = Buffer.alloc(expectedBuf.length);
   Buffer.from(provided, "utf-8").copy(providedBuf);
 
-  const valid =
-    provided.length === expected.length &&
-    timingSafeEqual(expectedBuf, providedBuf);
+  const valid = timingSafeEqual(expectedBuf, providedBuf);
 
   if (!valid) {
     res.writeHead(401, {
