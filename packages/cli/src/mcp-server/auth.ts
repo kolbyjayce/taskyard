@@ -21,12 +21,13 @@ export async function checkBearerAuth(
   const header = req.headers["authorization"] ?? "";
   const provided = /^Bearer (.+)$/i.exec(header)?.[1] ?? "";
 
-  // timingSafeEqual requires same-length buffers.
+  // timingSafeEqual requires same-length buffers; reject immediately if lengths differ.
   const expectedBuf = Buffer.from(expected, "utf-8");
-  const providedBuf = Buffer.alloc(expectedBuf.length);
-  Buffer.from(provided, "utf-8").copy(providedBuf);
+  const providedBuf = Buffer.from(provided, "utf-8");
 
-  const valid = timingSafeEqual(expectedBuf, providedBuf);
+  const valid =
+    expectedBuf.byteLength === providedBuf.byteLength &&
+    timingSafeEqual(expectedBuf, providedBuf);
 
   if (!valid) {
     res.writeHead(401, {
