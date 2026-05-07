@@ -212,6 +212,7 @@ const {
       backdrop?.classList.add('opacity-100');
       document.body.style.overflow = 'hidden';
       openBtn?.setAttribute('aria-expanded', 'true');
+      closeBtn?.focus();
     }
 
     function closeSidebar() {
@@ -221,6 +222,7 @@ const {
       backdrop?.classList.remove('opacity-100');
       document.body.style.overflow = '';
       openBtn?.setAttribute('aria-expanded', 'false');
+      openBtn?.focus();
     }
 
     openBtn?.addEventListener('click', openSidebar);
