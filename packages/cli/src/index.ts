@@ -32,6 +32,22 @@ program
       );
       process.exit(1);
     }
+    const parsedPort = parseInt(port, 10);
+    if (isNaN(parsedPort) || parsedPort < 1 || parsedPort > 65535) {
+      console.error(
+        `Invalid port: "${port}". Use a number between 1 and 65535.`
+      );
+      process.exit(1);
+    }
+
+    const AUTH_TOKEN = process.env.TASKYARD_AUTH_TOKEN;
+
+    if (!AUTH_TOKEN && transport === 'http') {
+      console.warn(
+        `HTTP auth is disabled. Server is publically accessible at port: ${parsedPort}`
+      );
+    }
+
     await startServer({ root, transport, port: parseInt(port, 10) });
   });
 

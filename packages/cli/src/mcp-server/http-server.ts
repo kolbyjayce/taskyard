@@ -9,6 +9,8 @@ import { registerTaskTools } from "./tools/tasks.js";
 import { checkBearerAuth } from "./auth.js";
 import { applyCors } from "./cors.js";
 
+class RequestTooLargeError extends Error {}
+
 export interface HttpServerOptions {
   port: number;
   root: string;
@@ -103,7 +105,24 @@ async function handleMcp(
 
   // New session — must be a POST with an initialize request.
   if (!sessionId && req.method === "POST") {
-    const body = await readBody(req);
+    let body: string;
+
+    try {
+      body = await readBody(req);
+    } catch (err) {
+      if (err instanceof RequestTooLargeError) {
+        res.writeHead(413, { "Content-Type": "application/json" })
+        res.end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: { code: -32000, message: "Payload too large" },
+            id: null,
+          })
+        );
+        return;
+      }
+      throw err;
+    }
 
     let parsed: unknown;
     try {
@@ -170,16 +189,23 @@ function readBody(
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let size = 0;
+    let done = false;
     req.on("data", (chunk: Buffer) => {
+      if (done) return;
       size += chunk.length;
       if (size > maxBytes) {
-        req.destroy();
-        reject(new Error("Request body too large"));
+        done = true;
+        req.resume();
+        reject(new RequestTooLargeError("Request body too large"));
         return;
       }
       chunks.push(chunk);
     });
-    req.on("end", () => resolve(Buffer.concat(chunks).toString("utf-8")));
-    req.on("error", reject);
+    req.on("end", () => {
+      if (!done) resolve(Buffer.concat(chunks).toString("utf-8"));
+    })
+    req.on("error", (err) => {
+      if (!done) reject(err);
+    })
   });
 }
