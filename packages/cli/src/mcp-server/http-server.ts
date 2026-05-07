@@ -212,7 +212,7 @@ async function handleMcp(
       if (sid) transports.delete(sid);
     };
 
-    const mcpServer = new McpServer({ name: "taskyard", version: "0.1.0" });
+    const mcpServer = new McpServer({ name: "taskyard", version: "1.0.1" });
     registerTaskTools(mcpServer, store);
     await mcpServer.connect(transport);
 
