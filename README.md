@@ -14,6 +14,8 @@ See [AGENT_RULES.md](./AGENT_RULES.md) for how agents should interact with the M
 npm install -g taskyard
 ```
 
+---
+
 ## Start the MCP server
 
 ```bash
@@ -26,7 +28,19 @@ Task files default to `~/.taskyard/` on all platforms. Override with `--root`:
 taskyard start --root /path/to/custom/dir
 ```
 
-Point your MCP client at the binary — no arguments needed for the default location:
+### HTTP transport
+
+```bash
+taskyard start --transport http --port 3000
+```
+
+Set `TASKYARD_AUTH_TOKEN` to require a bearer token; if unset, the server is publicly accessible on that port.
+
+---
+
+## Install as an MCP server
+
+Point your MCP client at the binary. No arguments are needed for the default task directory:
 
 ```json
 {
@@ -38,6 +52,43 @@ Point your MCP client at the binary — no arguments needed for the default loca
   }
 }
 ```
+
+With a custom root:
+
+```json
+{
+  "mcpServers": {
+    "taskyard": {
+      "command": "taskyard",
+      "args": ["start", "--root", "/path/to/tasks"]
+    }
+  }
+}
+```
+
+---
+
+## Dashboard
+
+The dashboard is a local web UI for viewing and editing tasks. It ships bundled with the CLI — no separate install needed.
+
+```bash
+taskyard dashboard
+```
+
+This starts a server at `http://localhost:4567` and opens your browser automatically. To suppress the browser open:
+
+```bash
+taskyard dashboard --no-open
+```
+
+Use a custom port or task directory:
+
+```bash
+taskyard dashboard --port 8080 --root /path/to/tasks
+```
+
+The dashboard reads and writes the same markdown files used by the MCP server, so agents and the UI stay in sync automatically.
 
 ---
 
@@ -95,6 +146,42 @@ Any notes or detail here.
 - `in-progress` — actively being worked on
 - `blocked` — waiting on something external
 - `done` — complete (terminal)
+
+---
+
+## Development
+
+**Prerequisites:** Node.js 20+
+
+```bash
+git clone https://github.com/kolbyjayce/taskyard.git
+cd taskyard
+npm install
+```
+
+**Run everything in development mode** (CLI API server + Vite dashboard dev server with HMR):
+
+```bash
+npm run dev
+```
+
+This starts:
+- The dashboard API at `http://localhost:4567`
+- The Vite dev server at `http://localhost:5173` (proxies `/api` to the API)
+
+**Build for production:**
+
+```bash
+npm run build
+```
+
+This builds the dashboard UI first (Vite → `packages/cli/dist/dashboard-ui/`), then compiles the CLI with TypeScript.
+
+**Run tests:**
+
+```bash
+npm test
+```
 
 ---
 
