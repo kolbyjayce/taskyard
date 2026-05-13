@@ -22,13 +22,18 @@ export class FileStore {
 
   // ── Projects ──────────────────────────────────────────────────────────────
 
-  async listProjects(): Promise<{ name: string; taskCount: number }[]> {
-    const results: { name: string; taskCount: number }[] = [];
+  async createProject(name: string): Promise<void> {
+    await fs.mkdir(this.taskDir(name), { recursive: true });
+  }
+
+  async listProjects(): Promise<{ name: string; taskCount: number; icon?: string; color?: string }[]> {
+    const results: { name: string; taskCount: number; icon?: string; color?: string }[] = [];
 
     // Always include "default" if it has tasks
     const defaultTasks = await this.listTasks("default");
     if (defaultTasks.length > 0) {
-      results.push({ name: "default", taskCount: defaultTasks.length });
+      const meta = await this.readProjectMeta("default");
+      results.push({ name: "default", taskCount: defaultTasks.length, ...meta });
     }
 
     // Scan projects/ subdirectory
@@ -36,10 +41,71 @@ export class FileStore {
     const entries = await fs.readdir(projectsDir, { withFileTypes: true }).catch(() => []);
     for (const entry of entries.filter(e => e.isDirectory() && e.name !== "all")) {
       const tasks = await this.listTasks(entry.name);
-      results.push({ name: entry.name, taskCount: tasks.length });
+      const meta = await this.readProjectMeta(entry.name);
+      results.push({ name: entry.name, taskCount: tasks.length, ...meta });
     }
 
     return results;
+  }
+
+  async readProjectMeta(project: string): Promise<{ icon?: string; color?: string }> {
+    try {
+      const raw = await fs.readFile(this.projectMetaPath(project), "utf-8");
+      const parsed = JSON.parse(raw);
+      return {
+        icon: typeof parsed.icon === "string" ? parsed.icon : undefined,
+        color: typeof parsed.color === "string" ? parsed.color : undefined,
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  async writeProjectMeta(project: string, meta: { icon?: string; color?: string }): Promise<void> {
+    const metaPath = this.projectMetaPath(project);
+    await fs.mkdir(path.dirname(metaPath), { recursive: true });
+    await fs.writeFile(metaPath, JSON.stringify(meta, null, 2));
+  }
+
+  async renameProject(oldName: string, newName: string): Promise<void> {
+    if (oldName === "default") throw new Error("Cannot rename the default project");
+    const safeOld = this.sanitizeSegment(oldName, "project");
+    const safeNew = this.sanitizeSegment(newName, "project");
+    if (safeNew === "default" || safeNew === "all") {
+      throw new Error(`"${safeNew}" is a reserved project name`);
+    }
+    const root = path.resolve(this.root);
+    const oldDir = path.join(root, "projects", safeOld);
+    const newDir = path.join(root, "projects", safeNew);
+
+    // Ensure destination does not already exist
+    try {
+      await fs.access(newDir);
+      throw new Error(`Project "${newName}" already exists`);
+    } catch (e: any) {
+      if (e.code !== "ENOENT") throw e;
+    }
+
+    await fs.rename(oldDir, newDir);
+
+    // Update the project field in every task file
+    const tasksDir = path.join(newDir, "tasks");
+    const files = await fs.readdir(tasksDir).catch(() => [] as string[]);
+    for (const file of files.filter(f => f.endsWith(".md"))) {
+      const filePath = path.join(tasksDir, file);
+      const raw = await fs.readFile(filePath, "utf-8");
+      const { data, content } = matter(raw);
+      data.project = newName;
+      await fs.writeFile(filePath, matter.stringify(content, data as Record<string, unknown>));
+    }
+  }
+
+  async deleteProject(name: string): Promise<void> {
+    if (name === "default") throw new Error("Cannot delete the default project");
+    const safeProject = this.sanitizeSegment(name, "project");
+    const root = path.resolve(this.root);
+    const dir = path.join(root, "projects", safeProject);
+    await fs.rm(dir, { recursive: true, force: false });
   }
 
   // ── Reading ───────────────────────────────────────────────────────────────
@@ -113,7 +179,7 @@ export class FileStore {
     }
   }
 
-  async updateTask(project: string, taskId: string, patch: Partial<Task>): Promise<Task> {
+  async updateTask(project: string, taskId: string, patch: Partial<Task> & { notes?: string }): Promise<Task> {
     const lockPath = this.taskPath(project, taskId) + ".lock";
     let delay = 50;
     const deadline = Date.now() + 5000;
@@ -123,8 +189,10 @@ export class FileStore {
         const fd = await fs.open(lockPath, "wx");
         try {
           const existing = await this.readTask(project, taskId);
-          const { body, ...frontmatter } = existing;
-          const updated = { ...frontmatter, ...patch, id: existing.id, project: existing.project };
+          const { body: existingBody, ...frontmatter } = existing;
+          const { notes: newNotes, ...frontmatterPatch } = patch;
+          const body = newNotes !== undefined ? `\n${newNotes}\n` : existingBody;
+          const updated = { ...frontmatter, ...frontmatterPatch, id: existing.id, project: existing.project };
           await fs.writeFile(
             this.taskPath(project, taskId),
             matter.stringify(body, updated as Record<string, unknown>)
@@ -163,6 +231,16 @@ export class FileStore {
   }
 
   // ── Path helpers ──────────────────────────────────────────────────────────
+
+  private projectMetaPath(project: string): string {
+    const safeProject = this.sanitizeSegment(project, "project");
+    const root = path.resolve(this.root);
+    if (safeProject === "default") {
+      return path.join(root, "project.json");
+    }
+    return path.join(root, "projects", safeProject, "project.json");
+  }
+
   private sanitizeSegment(value: string, name: string): string {
     if (!/^[A-Za-z0-9_-]+$/.test(value)) {
       throw new Error(`Invalid ${name}: ${value}`);
