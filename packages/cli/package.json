@@ -36,7 +36,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node ./dist/index.js",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "npm run build -w @taskyard/dashboard && npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
